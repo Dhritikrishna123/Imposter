@@ -3,11 +3,13 @@ export const MODELS_KEY = 'imposter_models';
 
 export function getSavedConfig() {
     const saved = localStorage.getItem(CONFIG_KEY);
-    return saved ? JSON.parse(saved) : null;
+    const parsed = saved ? JSON.parse(saved) : null;
+    if (parsed && !parsed.appMode) parsed.appMode = 'stealth';
+    return parsed;
 }
 
-export function saveConfig(name, systemPrompt) {
-    const config = { name, systemPrompt };
+export function saveConfig(name, systemPrompt, appMode = 'stealth') {
+    const config = { name, systemPrompt, appMode };
     localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
     return config;
 }

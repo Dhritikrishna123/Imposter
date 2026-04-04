@@ -100,6 +100,35 @@ function createWindow() {
             throw error;
         }
     });
+
+    ipcMain.on('set-app-mode', (event, mode) => {
+        if (!mainWindow) return;
+        if (mode === 'normal') {
+            mainWindow.setSkipTaskbar(false);
+            mainWindow.setAlwaysOnTop(false);
+            mainWindow.setResizable(true);
+            mainWindow.setContentProtection(false); // Allow screenshots
+        } else {
+            // Default to stealth
+            mainWindow.setSkipTaskbar(true);
+            mainWindow.setAlwaysOnTop(true, 'screen-saver');
+            mainWindow.setResizable(false);
+            mainWindow.setContentProtection(true); // Block screenshots
+        }
+    });
+
+    ipcMain.on('minimize-app', () => {
+        if (mainWindow) mainWindow.minimize();
+    });
+
+    ipcMain.on('close-app', () => {
+        if (mainWindow) app.quit();
+    });
+
+    ipcMain.on('restart-app', () => {
+        app.relaunch();
+        app.exit(0);
+    });
 }
 
 app.whenReady().then(() => {

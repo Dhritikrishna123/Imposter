@@ -22,6 +22,12 @@ const userNameInput = document.getElementById('user-name');
 const systemPromptInput = document.getElementById('system-prompt');
 const settingsNameInput = document.getElementById('settings-name');
 const settingsPromptInput = document.getElementById('settings-prompt');
+const settingsAppMode = document.getElementById('settings-app-mode');
+
+// Window Controls
+const windowControls = document.getElementById('window-controls');
+const winMinBtn = document.getElementById('win-min-btn');
+const winCloseBtn = document.getElementById('win-close-btn');
 
 // Model Management Elements
 const customModelsList = document.getElementById('custom-models-list');
@@ -49,9 +55,21 @@ async function init() {
     setupMarkdown();
     loadAppConfig();
     customModels = Config.getSavedModels();
+    applyAppMode(userConfig.appMode || 'stealth');
     await loadModels();
     setupEventListeners();
     renderCustomModelsList();
+}
+
+function applyAppMode(mode) {
+    if (window.electronAPI && window.electronAPI.setAppMode) {
+        window.electronAPI.setAppMode(mode);
+    }
+    if (mode === 'normal') {
+        windowControls.style.display = 'flex';
+    } else {
+        windowControls.style.display = 'none';
+    }
 }
 
 function loadAppConfig() {
@@ -187,6 +205,7 @@ function setupEventListeners() {
     settingsBtn.addEventListener('click', () => {
         settingsNameInput.value = userConfig.name;
         settingsPromptInput.value = userConfig.systemPrompt;
+        settingsAppMode.value = userConfig.appMode || 'stealth';
         settingsOverlay.classList.remove('hidden');
     });
 
@@ -195,9 +214,21 @@ function setupEventListeners() {
     saveSettingsBtn.addEventListener('click', () => {
         const name = settingsNameInput.value.trim();
         const prompt = settingsPromptInput.value.trim();
+        const appMode = settingsAppMode.value;
+        const modeChanged = appMode !== (userConfig.appMode || 'stealth');
+        
         if (name) {
-            userConfig = Config.saveConfig(name, prompt);
+            userConfig = Config.saveConfig(name, prompt, appMode);
             UI.updateGreeting(greetingContainer, userConfig.name);
+            
+            if (modeChanged) {
+                if (window.electronAPI && window.electronAPI.restartApp) {
+                    window.electronAPI.restartApp();
+                }
+                return;
+            }
+            
+            applyAppMode(appMode);
             settingsOverlay.classList.add('hidden');
             statusText.textContent = 'Settings Saved';
             setTimeout(() => statusText.textContent = 'Ready', 2000);
@@ -225,6 +256,18 @@ function setupEventListeners() {
                 p.classList.toggle('active', p.id === `tab-${tabId}`);
             });
         });
+    });
+
+    // Window Controls Listeners
+    if (winMinBtn) winMinBtn.addEventListener('click', () => {
+        if (window.electronAPI && window.electronAPI.minimizeApp) {
+            window.electronAPI.minimizeApp();
+        }
+    });
+    if (winCloseBtn) winCloseBtn.addEventListener('click', () => {
+        if (window.electronAPI && window.electronAPI.closeApp) {
+            window.electronAPI.closeApp();
+        }
     });
 
     // Global IPC Events

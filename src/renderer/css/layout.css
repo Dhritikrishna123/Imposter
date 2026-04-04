@@ -20,6 +20,11 @@
     -webkit-app-region: drag;
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+}
+
 .icon-button {
     background: none;
     border: none;
@@ -36,6 +41,40 @@
 .icon-button:hover {
     background-color: rgba(255, 255, 255, 0.08);
     color: var(--text-primary);
+}
+
+.window-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 14px;
+    padding-left: 14px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.win-btn {
+    -webkit-app-region: no-drag;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.win-btn.win-min:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.win-btn.win-close:hover {
+    background-color: #ff4a4a;
+    color: white;
 }
 
 .model-selector-wrapper {
