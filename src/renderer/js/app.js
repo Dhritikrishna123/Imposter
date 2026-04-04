@@ -284,6 +284,20 @@ function setupEventListeners() {
         }
     });
 
+    if (window.electronAPI.onOcrResult) {
+        window.electronAPI.onOcrResult((text) => {
+            const currentVal = promptInput.value;
+            if (currentVal && !currentVal.endsWith(' ') && !currentVal.endsWith('\n')) {
+                promptInput.value += '\n' + text;
+            } else {
+                promptInput.value += text;
+            }
+            promptInput.style.height = 'auto';
+            promptInput.style.height = Math.min(promptInput.scrollHeight, 200) + 'px';
+            promptInput.focus();
+        });
+    }
+
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             settingsOverlay.classList.add('hidden');

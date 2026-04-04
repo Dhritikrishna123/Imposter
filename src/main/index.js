@@ -1,5 +1,6 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, session } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, session, desktopCapturer, screen, nativeImage } = require('electron');
 const path = require('path');
+const Tesseract = require('tesseract.js');
 
 let mainWindow;
 const width = 900;
@@ -85,6 +86,83 @@ function createWindow() {
 
     globalShortcut.register('CommandOrControl+Shift+D', () => {
         if (mainWindow) mainWindow.webContents.toggleDevTools();
+    });
+
+    let snipperWindow = null;
+    globalShortcut.register('CommandOrControl+Shift+S', async () => {
+        if (snipperWindow) return;
+        try {
+            const primaryDisplay = screen.getPrimaryDisplay();
+            const { width, height } = primaryDisplay.bounds;
+            
+            // Wait for 100ms before taking screenshot to allow user to release keys
+            await new Promise(r => setTimeout(r, 100));
+
+            const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: Math.max(width, 1920), height: Math.max(height, 1080) } });
+            // Using first source as primary monitor
+            const screenSource = sources[0].thumbnail.toDataURL();
+
+            snipperWindow = new BrowserWindow({
+                width, height, x: primaryDisplay.bounds.x, y: primaryDisplay.bounds.y,
+                transparent: true,
+                frame: false,
+                alwaysOnTop: true,
+                skipTaskbar: true,
+                enableLargerThanScreen: true,
+                webPreferences: {
+                    preload: path.join(__dirname, 'preload_snipper.js'),
+                    contextIsolation: true
+                }
+            });
+
+            // CRITICAL FOR STEALTH: Prevent screenshares from seeing the dim overlay or selection box
+            snipperWindow.setContentProtection(true);
+            snipperWindow.setAlwaysOnTop(true, 'screen-saver');
+            snipperWindow.loadFile(path.join(__dirname, '../renderer/snipper.html'));
+
+            snipperWindow.webContents.on('did-finish-load', () => {
+                snipperWindow.webContents.send('load-image', screenSource);
+            });
+
+            snipperWindow.on('closed', () => {
+                snipperWindow = null;
+            });
+        } catch (err) {
+            console.error('Snipping error:', err);
+        }
+    });
+
+    ipcMain.on('cancel-snip', () => {
+        if (snipperWindow) snipperWindow.close();
+    });
+
+    ipcMain.on('snip-crop', async (event, { x, y, width, height, source }) => {
+        if (snipperWindow) snipperWindow.close();
+        
+        try {
+            // Restore mainWindow focus and tell it we are processing OCR maybe?
+            
+            const img = nativeImage.createFromDataURL(source);
+            // Crop image to selection
+            const cropped = img.crop({ 
+                x: Math.floor(x), 
+                y: Math.floor(y), 
+                width: Math.floor(width), 
+                height: Math.floor(height) 
+            });
+            const buffer = cropped.toPNG();
+            
+            Tesseract.recognize(buffer, 'eng')
+                .then(({ data: { text } }) => {
+                    const cleaned = text.trim();
+                    if (cleaned && mainWindow) {
+                        mainWindow.webContents.send('ocr-result', cleaned);
+                    }
+                })
+                .catch(console.error);
+        } catch (err) {
+            console.error('Crop error:', err);
+        }
     });
 
     ipcMain.handle('ollama-call', async (event, { url, options }) => {

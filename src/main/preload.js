@@ -9,5 +9,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setAppMode: (mode) => ipcRenderer.send('set-app-mode', mode),
     minimizeApp: () => ipcRenderer.send('minimize-app'),
     closeApp: () => ipcRenderer.send('close-app'),
-    restartApp: () => ipcRenderer.send('restart-app')
+    restartApp: () => ipcRenderer.send('restart-app'),
+    onOcrResult: (callback) => ipcRenderer.on('ocr-result', (event, text) => callback(text))
 });
