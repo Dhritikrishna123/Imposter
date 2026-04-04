@@ -2,6 +2,7 @@ import * as API from './api.js';
 import * as Config from './config.js';
 import * as UI from './ui.js';
 import { setupMarkdown, parseMarkdown } from './markdown.js';
+import { AssemblyService } from './assembly-service.js';
 
 // DOM Elements
 const promptInput = document.getElementById('prompt-input');
@@ -23,6 +24,8 @@ const systemPromptInput = document.getElementById('system-prompt');
 const settingsNameInput = document.getElementById('settings-name');
 const settingsPromptInput = document.getElementById('settings-prompt');
 const settingsAppMode = document.getElementById('settings-app-mode');
+const settingsAssemblyKey = document.getElementById('settings-assembly-key');
+const voiceTestStatus = document.getElementById('voice-test-status');
 
 // Window Controls
 const windowControls = document.getElementById('window-controls');
@@ -42,14 +45,15 @@ const baseUrlGroup = document.getElementById('base-url-group');
 
 // Buttons
 const saveConfigBtn = document.getElementById('save-config-btn');
-const settingsBtn = document.getElementById('settings-btn');
-const closeSettingsBtn = document.getElementById('close-settings');
+const settingsBtn = document.getElementById('settings-link');
+const testVoiceBtn = document.getElementById('test-voice-btn');
 const saveSettingsBtn = document.getElementById('save-settings');
 
 // State
-let userConfig = { name: '', systemPrompt: '' };
+let userConfig = Config.getDefaultConfig();
 let customModels = [];
 let currentRawResponse = '';
+let isRecording = false;
 
 async function init() {
     setupMarkdown();
@@ -90,7 +94,6 @@ async function loadModels() {
     const ollamaModels = await API.fetchModels();
     modelSelect.innerHTML = '';
 
-    // Add Ollama Models
     if (ollamaModels) {
         ollamaModels.forEach(m => {
             const opt = document.createElement('option');
@@ -98,53 +101,44 @@ async function loadModels() {
             opt.textContent = `Local: ${m.name}`;
             modelSelect.appendChild(opt);
         });
-        statusDot.className = 'dot online';
-        statusText.textContent = 'Ready';
     }
 
-    // Add Custom Models
-    customModels.forEach(m => {
-        const opt = document.createElement('option');
-        const providerName = m.provider === 'openrouter' ? 'OpenRouter' : 'Custom';
-        opt.value = `${m.provider}|${m.modelId}|${m.baseUrl || ''}|${m.apiKey || ''}`;
-        opt.textContent = `${providerName}: ${m.name}`;
-        modelSelect.appendChild(opt);
-    });
+    if (customModels && customModels.length > 0) {
+        customModels.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = `${m.provider}|${m.modelId}|${m.baseUrl}|${m.apiKey}`;
+            opt.textContent = `${m.name}`;
+            modelSelect.appendChild(opt);
+        });
+    }
 
-    if (modelSelect.options.length === 0) {
-        const opt = document.createElement('option');
-        opt.textContent = 'No models found';
-        modelSelect.appendChild(opt);
+    if (modelSelect.options.length > 0) {
+        statusDot.className = 'dot online';
+        statusText.textContent = 'Ready';
+    } else {
         statusText.textContent = 'No Models';
-    } else if (!ollamaModels && statusDot.className === 'dot offline') {
-         statusText.textContent = 'Ollama Offline';
     }
 }
 
 function renderCustomModelsList() {
     if (!customModelsList) return;
-    
-    if (customModels.length === 0) {
-        customModelsList.innerHTML = '<div class="models-list-empty">No custom models registered</div>';
-        return;
-    }
-
-    customModelsList.innerHTML = customModels.map((m, index) => `
-        <div class="model-item">
+    customModelsList.innerHTML = '';
+    customModels.forEach((m, index) => {
+        const item = document.createElement('div');
+        item.className = 'model-item';
+        item.innerHTML = `
             <div class="model-info">
-                <span class="model-name">${m.name}</span>
-                <span class="model-provider">${m.provider.toUpperCase()} - ${m.modelId}</span>
+                <strong>${m.name}</strong>
+                <span>${m.provider} - ${m.modelId}</span>
             </div>
-            <button class="remove-model-btn" data-index="${index}" title="Remove Model">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            </button>
-        </div>
-    `).join('');
+            <button class="delete-model-btn" data-index="${index}">Delete</button>
+        `;
+        customModelsList.appendChild(item);
+    });
 
-    // Attach delete listeners
-    customModelsList.querySelectorAll('.remove-model-btn').forEach(btn => {
+    document.querySelectorAll('.delete-model-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            const index = parseInt(btn.getAttribute('data-index'));
+            const index = btn.getAttribute('data-index');
             customModels.splice(index, 1);
             Config.saveModels(customModels);
             renderCustomModelsList();
@@ -154,10 +148,8 @@ function renderCustomModelsList() {
 }
 
 function setupEventListeners() {
-    // Input Auto-grow
     promptInput.addEventListener('input', () => UI.autoGrowTextarea(promptInput));
 
-    // Provider Change in Form
     newModelProvider.addEventListener('change', () => {
         const provider = newModelProvider.value;
         apiKeyGroup.style.display = provider === 'openrouter' ? 'block' : 'none';
@@ -171,7 +163,6 @@ function setupEventListeners() {
         }
     });
 
-    // Add Model Action
     addModelBtn.addEventListener('click', () => {
         const name = newModelLabel.value.trim();
         const modelId = newModelId.value.trim();
@@ -184,15 +175,12 @@ function setupEventListeners() {
             Config.saveModels(customModels);
             renderCustomModelsList();
             loadModels();
-            
-            // Clear fields
             newModelLabel.value = '';
             newModelId.value = '';
             newModelKey.value = '';
         }
     });
 
-    // Search Interaction
     searchBtn.addEventListener('click', performSearch);
     promptInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -201,33 +189,25 @@ function setupEventListeners() {
         }
     });
 
-    // Settings Toggle
     settingsBtn.addEventListener('click', () => {
         settingsNameInput.value = userConfig.name;
         settingsPromptInput.value = userConfig.systemPrompt;
         settingsAppMode.value = userConfig.appMode || 'stealth';
+        settingsAssemblyKey.value = userConfig.assemblyKey || '';
         settingsOverlay.classList.remove('hidden');
     });
 
-    closeSettingsBtn.addEventListener('click', () => settingsOverlay.classList.add('hidden'));
+    document.getElementById('close-settings').addEventListener('click', () => settingsOverlay.classList.add('hidden'));
 
     saveSettingsBtn.addEventListener('click', () => {
         const name = settingsNameInput.value.trim();
         const prompt = settingsPromptInput.value.trim();
         const appMode = settingsAppMode.value;
-        const modeChanged = appMode !== (userConfig.appMode || 'stealth');
+        const assemblyKey = settingsAssemblyKey.value.trim();
         
         if (name) {
-            userConfig = Config.saveConfig(name, prompt, appMode);
+            userConfig = Config.saveConfig(name, prompt, appMode, assemblyKey);
             UI.updateGreeting(greetingContainer, userConfig.name);
-            
-            if (modeChanged) {
-                if (window.electronAPI && window.electronAPI.restartApp) {
-                    window.electronAPI.restartApp();
-                }
-                return;
-            }
-            
             applyAppMode(appMode);
             settingsOverlay.classList.add('hidden');
             statusText.textContent = 'Settings Saved';
@@ -235,18 +215,34 @@ function setupEventListeners() {
         }
     });
 
-    // Onboarding
+    testVoiceBtn.addEventListener('click', async () => {
+        const key = settingsAssemblyKey.value.trim();
+        if (!key) {
+            voiceTestStatus.textContent = '❌ Please enter an API key';
+            return;
+        }
+
+        voiceTestStatus.textContent = 'Testing...';
+        const result = await window.electronAPI.testAssemblyKey(key);
+        if (result.success) {
+            voiceTestStatus.textContent = '✅ Connection Successful!';
+            voiceTestStatus.style.color = '#00ffcc';
+        } else {
+            voiceTestStatus.textContent = `❌ Failed: ${result.error}`;
+            voiceTestStatus.style.color = '#ff4d4d';
+        }
+    });
+
     saveConfigBtn.addEventListener('click', () => {
         const name = userNameInput.value.trim();
         const prompt = systemPromptInput.value.trim();
         if (name) {
-            userConfig = Config.saveConfig(name, prompt);
+            userConfig = Config.saveConfig(name, prompt, 'stealth', '');
             onboardingOverlay.classList.add('hidden');
             UI.updateGreeting(greetingContainer, userConfig.name);
         }
     });
 
-    // Tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const tabId = btn.getAttribute('data-tab');
@@ -258,24 +254,12 @@ function setupEventListeners() {
         });
     });
 
-    // Window Controls Listeners
-    if (winMinBtn) winMinBtn.addEventListener('click', () => {
-        if (window.electronAPI && window.electronAPI.minimizeApp) {
-            window.electronAPI.minimizeApp();
-        }
-    });
-    if (winCloseBtn) winCloseBtn.addEventListener('click', () => {
-        if (window.electronAPI && window.electronAPI.closeApp) {
-            window.electronAPI.closeApp();
-        }
-    });
+    if (winMinBtn) winMinBtn.addEventListener('click', () => window.electronAPI.minimizeApp());
+    if (winCloseBtn) winCloseBtn.addEventListener('click', () => window.electronAPI.closeApp());
 
-    // Global IPC Events
     window.electronAPI.onFocusInput(() => promptInput.focus());
     window.electronAPI.onTriggerSearch(() => performSearch());
-    window.electronAPI.onScroll((dir) => {
-        chatStage.scrollBy({ top: dir * 150, behavior: 'smooth' });
-    });
+    window.electronAPI.onScroll((dir) => chatStage.scrollBy({ top: dir * 150, behavior: 'smooth' }));
     window.electronAPI.onCopyMain(() => {
         if (currentRawResponse) {
             navigator.clipboard.writeText(currentRawResponse);
@@ -284,16 +268,48 @@ function setupEventListeners() {
         }
     });
 
+    window.electronAPI.onTriggerAiSearch(() => {
+        const lastTranscript = AssemblyService.getLastFinalTranscript();
+        if (lastTranscript) {
+            promptInput.value = lastTranscript;
+            performSearch();
+        }
+    });
+
+    window.electronAPI.onToggleAutoReply(async () => {
+        if (isRecording) {
+            AssemblyService.stop();
+            window.electronAPI.closeIslandWindow();
+            isRecording = false;
+            statusText.textContent = 'Ready';
+        } else {
+            try {
+                if (!userConfig.assemblyKey) {
+                    statusText.textContent = 'Missing API Key';
+                    return;
+                }
+                
+                statusText.textContent = 'Connecting...';
+                const started = await AssemblyService.start(userConfig.assemblyKey);
+                
+                if (started) {
+                    window.electronAPI.openIslandWindow();
+                    isRecording = true;
+                    statusText.textContent = 'Live • Recording';
+                } else {
+                    statusText.textContent = 'Failed to Start';
+                }
+            } catch (err) {
+                console.error('Toggle error:', err);
+                statusText.textContent = 'Mic Error';
+            }
+        }
+    });
+
     if (window.electronAPI.onOcrResult) {
         window.electronAPI.onOcrResult((text) => {
-            const currentVal = promptInput.value;
-            if (currentVal && !currentVal.endsWith(' ') && !currentVal.endsWith('\n')) {
-                promptInput.value += '\n' + text;
-            } else {
-                promptInput.value += text;
-            }
-            promptInput.style.height = 'auto';
-            promptInput.style.height = Math.min(promptInput.scrollHeight, 200) + 'px';
+            promptInput.value += (promptInput.value ? '\n' : '') + text;
+            UI.autoGrowTextarea(promptInput);
             promptInput.focus();
         });
     }
@@ -312,11 +328,9 @@ async function performSearch() {
     if (!text || !modelSelection) return;
 
     const [provider, modelId, baseUrl, apiKey] = modelSelection.split('|');
-
     promptInput.value = '';
     promptInput.style.height = 'auto';
     currentRawResponse = '';
-    
     UI.showLoading(resultContent);
     searchBtn.disabled = true;
 
@@ -325,36 +339,22 @@ async function performSearch() {
         let reasoningHtml = '';
 
         if (provider === 'ollama') {
-            const prompt = userConfig.systemPrompt ? 
-                `System: ${userConfig.systemPrompt}\n\nUser: ${text}` : text;
-            
-            responseData = await API.generateOllamaResponse(baseUrl, {
-                model: modelId,
-                prompt,
-                stream: false
-            });
+            const prompt = userConfig.systemPrompt ? `System: ${userConfig.systemPrompt}\n\nUser: ${text}` : text;
+            responseData = await API.generateOllamaResponse(baseUrl, { model: modelId, prompt, stream: false });
             currentRawResponse = responseData.response;
         } else if (provider === 'openrouter') {
-            const messages = [{ role: 'user', content: text }];
-            
             const data = await API.generateOpenRouterResponse(apiKey, {
                 model: modelId,
-                messages: messages,
+                messages: [{ role: 'user', content: text }],
                 system_prompt: userConfig.systemPrompt || undefined,
                 reasoning: { enabled: true }
             });
-            
             if (data.choices && data.choices[0]) {
                 const msg = data.choices[0].message;
                 currentRawResponse = msg.content;
-                if (msg.reasoning_details) {
-                    reasoningHtml = UI.renderReasoningTrace(msg.reasoning_details);
-                }
-            } else {
-                throw new Error("No response from OpenRouter");
+                if (msg.reasoning_details) reasoningHtml = UI.renderReasoningTrace(msg.reasoning_details);
             }
         }
-
         resultContent.innerHTML = reasoningHtml + parseMarkdown(currentRawResponse);
     } catch (err) {
         UI.showError(resultContent, err);

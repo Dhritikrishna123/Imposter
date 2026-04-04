@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imposter Island</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.4); /* Subtle background for stealth */
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+            -webkit-app-region: drag; /* Allow dragging */
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #subtitle {
+            font-size: 1.2rem;
+            font-weight: 500;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            max-width: 90%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 20px;
+            -webkit-app-region: no-drag; /* Subtitle text shouldn't be draggable area */
+        }
+
+        .partial { color: rgba(255, 255, 255, 0.7); }
+        .final { color: #00ffcc; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="subtitle" class="partial">Waiting for transcription...</div>
+
+    <script>
+        const subtitleEl = document.getElementById('subtitle');
+        
+        window.electronAPI.onTranscriptionData((data) => {
+            if (data.message_type === 'PartialTranscript') {
+                subtitleEl.textContent = data.text;
+                subtitleEl.className = 'partial';
+            } else if (data.message_type === 'FinalTranscript') {
+                subtitleEl.textContent = data.text;
+                subtitleEl.className = 'final';
+                // Clear after 3 seconds
+                setTimeout(() => {
+                    if (subtitleEl.textContent === data.text) {
+                        subtitleEl.textContent = '';
+                    }
+                }, 3000);
+            }
+        });
+    </script>
+</body>
+</html>

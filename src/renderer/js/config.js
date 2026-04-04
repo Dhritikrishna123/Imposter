@@ -1,18 +1,23 @@
 export const CONFIG_KEY = 'imposter_config';
 export const MODELS_KEY = 'imposter_models';
 
-export function getSavedConfig() {
+export const getSavedConfig = () => {
     const saved = localStorage.getItem(CONFIG_KEY);
-    const parsed = saved ? JSON.parse(saved) : null;
-    if (parsed && !parsed.appMode) parsed.appMode = 'stealth';
-    return parsed;
-}
+    return saved ? JSON.parse(saved) : null;
+};
 
-export function saveConfig(name, systemPrompt, appMode = 'stealth') {
-    const config = { name, systemPrompt, appMode };
+export const getDefaultConfig = () => ({
+    name: '',
+    systemPrompt: 'You are an expert technical interviewer. Help the candidate with concise, accurate, and professional answers based on the transcription.',
+    appMode: 'stealth',
+    assemblyKey: ''
+});
+
+export const saveConfig = (name, systemPrompt, appMode, assemblyKey) => {
+    const config = { name, systemPrompt, appMode, assemblyKey };
     localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
     return config;
-}
+};
 
 export function getSavedModels() {
     const saved = localStorage.getItem(MODELS_KEY);
