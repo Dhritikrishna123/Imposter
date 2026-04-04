@@ -29,8 +29,28 @@ export function showError(container, error) {
         <div style="color:#ff4a4a; padding:10px; border:1px solid #ff4a4a; border-radius:8px;">
             <p><strong>System Error:</strong> ${error.message}</p>
             <p style="font-size:12px; margin-top:8px; color:var(--text-secondary);">
-                The background process could not reach Ollama. Check your firewall and local server status.
+                Check your internet connection or local server (Ollama) status.
             </p>
+        </div>
+    `;
+}
+
+export function renderReasoningTrace(details) {
+    if (!details || !Array.isArray(details)) return '';
+    
+    const reasoningText = details
+        .filter(d => d.type === 'reasoning.text')
+        .map(d => d.text)
+        .join('\n');
+    
+    if (!reasoningText) return '';
+
+    return `
+        <div class="reasoning-trace">
+            <details>
+                <summary>Logic Trace</summary>
+                <div class="reasoning-content">${reasoningText}</div>
+            </details>
         </div>
     `;
 }

@@ -23,6 +23,17 @@ const systemPromptInput = document.getElementById('system-prompt');
 const settingsNameInput = document.getElementById('settings-name');
 const settingsPromptInput = document.getElementById('settings-prompt');
 
+// Model Management Elements
+const customModelsList = document.getElementById('custom-models-list');
+const newModelProvider = document.getElementById('new-model-provider');
+const newModelLabel = document.getElementById('new-model-label');
+const newModelId = document.getElementById('new-model-id');
+const newModelKey = document.getElementById('new-model-key');
+const newModelUrl = document.getElementById('new-model-url');
+const addModelBtn = document.getElementById('add-model-btn');
+const apiKeyGroup = document.getElementById('api-key-group');
+const baseUrlGroup = document.getElementById('base-url-group');
+
 // Buttons
 const saveConfigBtn = document.getElementById('save-config-btn');
 const settingsBtn = document.getElementById('settings-btn');
@@ -31,13 +42,16 @@ const saveSettingsBtn = document.getElementById('save-settings');
 
 // State
 let userConfig = { name: '', systemPrompt: '' };
+let customModels = [];
 let currentRawResponse = '';
 
 async function init() {
     setupMarkdown();
     loadAppConfig();
+    customModels = Config.getSavedModels();
     await loadModels();
     setupEventListeners();
+    renderCustomModelsList();
 }
 
 function loadAppConfig() {
@@ -52,26 +66,113 @@ function loadAppConfig() {
 }
 
 async function loadModels() {
-    const models = await API.fetchModels();
-    if (models) {
-        modelSelect.innerHTML = '';
-        models.forEach(m => {
+    statusDot.className = 'dot offline';
+    statusText.textContent = 'Scanning...';
+    
+    const ollamaModels = await API.fetchModels();
+    modelSelect.innerHTML = '';
+
+    // Add Ollama Models
+    if (ollamaModels) {
+        ollamaModels.forEach(m => {
             const opt = document.createElement('option');
-            opt.value = m.name;
-            opt.textContent = m.name;
+            opt.value = `ollama|${m.name}|http://127.0.0.1:11434`;
+            opt.textContent = `Local: ${m.name}`;
             modelSelect.appendChild(opt);
         });
         statusDot.className = 'dot online';
         statusText.textContent = 'Ready';
-    } else {
-        statusDot.className = 'dot offline';
-        statusText.textContent = 'Ollama Offline';
     }
+
+    // Add Custom Models
+    customModels.forEach(m => {
+        const opt = document.createElement('option');
+        const providerName = m.provider === 'openrouter' ? 'OpenRouter' : 'Custom';
+        opt.value = `${m.provider}|${m.modelId}|${m.baseUrl || ''}|${m.apiKey || ''}`;
+        opt.textContent = `${providerName}: ${m.name}`;
+        modelSelect.appendChild(opt);
+    });
+
+    if (modelSelect.options.length === 0) {
+        const opt = document.createElement('option');
+        opt.textContent = 'No models found';
+        modelSelect.appendChild(opt);
+        statusText.textContent = 'No Models';
+    } else if (!ollamaModels && statusDot.className === 'dot offline') {
+         statusText.textContent = 'Ollama Offline';
+    }
+}
+
+function renderCustomModelsList() {
+    if (!customModelsList) return;
+    
+    if (customModels.length === 0) {
+        customModelsList.innerHTML = '<div class="models-list-empty">No custom models registered</div>';
+        return;
+    }
+
+    customModelsList.innerHTML = customModels.map((m, index) => `
+        <div class="model-item">
+            <div class="model-info">
+                <span class="model-name">${m.name}</span>
+                <span class="model-provider">${m.provider.toUpperCase()} - ${m.modelId}</span>
+            </div>
+            <button class="remove-model-btn" data-index="${index}" title="Remove Model">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+        </div>
+    `).join('');
+
+    // Attach delete listeners
+    customModelsList.querySelectorAll('.remove-model-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = parseInt(btn.getAttribute('data-index'));
+            customModels.splice(index, 1);
+            Config.saveModels(customModels);
+            renderCustomModelsList();
+            loadModels();
+        });
+    });
 }
 
 function setupEventListeners() {
     // Input Auto-grow
     promptInput.addEventListener('input', () => UI.autoGrowTextarea(promptInput));
+
+    // Provider Change in Form
+    newModelProvider.addEventListener('change', () => {
+        const provider = newModelProvider.value;
+        apiKeyGroup.style.display = provider === 'openrouter' ? 'block' : 'none';
+        baseUrlGroup.style.display = provider === 'ollama' ? 'block' : 'none';
+        if (provider === 'openrouter') {
+            newModelId.placeholder = 'e.g. qwen/qwen3.6-plus:free';
+            newModelUrl.value = '';
+        } else {
+            newModelId.placeholder = 'e.g. llama3';
+            newModelUrl.value = 'http://127.0.0.1:11434';
+        }
+    });
+
+    // Add Model Action
+    addModelBtn.addEventListener('click', () => {
+        const name = newModelLabel.value.trim();
+        const modelId = newModelId.value.trim();
+        const provider = newModelProvider.value;
+        const apiKey = newModelKey.value.trim();
+        const baseUrl = newModelUrl.value.trim();
+
+        if (name && modelId) {
+            customModels.push({ name, modelId, provider, apiKey, baseUrl });
+            Config.saveModels(customModels);
+            renderCustomModelsList();
+            loadModels();
+            
+            // Clear fields
+            newModelLabel.value = '';
+            newModelId.value = '';
+            newModelKey.value = '';
+        }
+    });
 
     // Search Interaction
     searchBtn.addEventListener('click', performSearch);
@@ -150,7 +251,10 @@ function setupEventListeners() {
 
 async function performSearch() {
     const text = promptInput.value.trim();
-    if (!text || !modelSelect.value) return;
+    const modelSelection = modelSelect.value;
+    if (!text || !modelSelection) return;
+
+    const [provider, modelId, baseUrl, apiKey] = modelSelection.split('|');
 
     promptInput.value = '';
     promptInput.style.height = 'auto';
@@ -160,23 +264,41 @@ async function performSearch() {
     searchBtn.disabled = true;
 
     try {
-        const baseUrl = statusDot.classList.contains('online') ? 
-            (modelSelect.innerHTML.includes('127.0.0.1') ? 'http://127.0.0.1:11434' : 'http://localhost:11434') : 
-            'http://127.0.0.1:11434';
+        let responseData;
+        let reasoningHtml = '';
 
-        let prompt = text;
-        if (userConfig.systemPrompt) {
-            prompt = `System: ${userConfig.systemPrompt}\n\nUser: ${text}`;
+        if (provider === 'ollama') {
+            const prompt = userConfig.systemPrompt ? 
+                `System: ${userConfig.systemPrompt}\n\nUser: ${text}` : text;
+            
+            responseData = await API.generateOllamaResponse(baseUrl, {
+                model: modelId,
+                prompt,
+                stream: false
+            });
+            currentRawResponse = responseData.response;
+        } else if (provider === 'openrouter') {
+            const messages = [{ role: 'user', content: text }];
+            
+            const data = await API.generateOpenRouterResponse(apiKey, {
+                model: modelId,
+                messages: messages,
+                system_prompt: userConfig.systemPrompt || undefined,
+                reasoning: { enabled: true }
+            });
+            
+            if (data.choices && data.choices[0]) {
+                const msg = data.choices[0].message;
+                currentRawResponse = msg.content;
+                if (msg.reasoning_details) {
+                    reasoningHtml = UI.renderReasoningTrace(msg.reasoning_details);
+                }
+            } else {
+                throw new Error("No response from OpenRouter");
+            }
         }
 
-        const data = await API.generateResponse(baseUrl, {
-            model: modelSelect.value,
-            prompt,
-            stream: false
-        });
-
-        currentRawResponse = data.response;
-        resultContent.innerHTML = parseMarkdown(data.response);
+        resultContent.innerHTML = reasoningHtml + parseMarkdown(currentRawResponse);
     } catch (err) {
         UI.showError(resultContent, err);
     } finally {

@@ -4,6 +4,10 @@
     height: 100%;
     width: 100%;
     max-width: 900px;
+    background-color: var(--bg-color);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .app-header {
@@ -37,43 +41,51 @@
 .model-selector-wrapper {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     -webkit-app-region: no-drag;
-    background-color: rgba(255, 255, 255, 0.03);
-    padding: 6px 14px;
+    background-color: rgba(255, 255, 255, 0.05);
+    padding: 6px 12px;
     border-radius: 100px;
-    border: 1px solid var(--border-color);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
+    backdrop-filter: blur(10px);
 }
 
 .model-selector-wrapper:hover {
-    background-color: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 0 15px rgba(16, 163, 127, 0.15);
 }
 
 .selector-icon {
     color: var(--accent-color);
-    opacity: 0.8;
+    opacity: 0.9;
+    flex-shrink: 0;
 }
 
 select {
     background-color: transparent;
     border: none;
     color: var(--text-primary);
-    font-family: 'Inter', sans-serif;
+    font-family: 'Outfit', sans-serif;
     font-size: 13px;
     font-weight: 600;
     outline: none;
     cursor: pointer;
     appearance: none;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-right: 24px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right center;
+    background-size: 14px;
 }
 
 select option {
-    background-color: var(--surface-color);
-    color: var(--text-primary);
+    background-color: #2a2a2a;
+    color: #fff;
+    padding: 10px;
 }
 
 .status-indicator {
