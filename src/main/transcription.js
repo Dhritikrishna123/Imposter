@@ -14,24 +14,48 @@ function startTranscription(apiKey) {
         assemblySocket = new WebSocket(url, { headers: { Authorization: apiKey } });
 
         assemblySocket.on('open', () => {
+            console.log('✅ AssemblyAI WebSocket Connected');
             const mainWindow = getMainWindow();
             if (mainWindow) mainWindow.webContents.send('transcription-status', 'connected');
         });
 
         assemblySocket.on('message', (message) => {
-            const data = JSON.parse(message);
-            const mainWindow = getMainWindow();
-            const islandWindow = getIslandWindow();
-            if (mainWindow) mainWindow.webContents.send('transcription-data', data);
-            if (islandWindow) islandWindow.webContents.send('transcription-data', data);
+            try {
+                const data = JSON.parse(message.toString());
+                
+                // Detailed logging to see what AssemblyAI is actually sending
+                if (data.message_type === 'SessionBegins') {
+                    console.log('🚀 Session Started! ID:', data.session_id);
+                } else if (data.message_type === 'FinalTranscript' || data.message_type === 'PartialTranscript') {
+                    // Only log transcripts we care about
+                    if (data.text) {
+                        console.log(`🎙️ [${data.message_type}] ${data.text}`);
+                    }
+                } else {
+                    console.log('📬 Server Message:', data);
+                }
+
+                if (data.error) {
+                    console.error('❌ AssemblyAI Server Error:', data.error);
+                }
+
+                const mainWindow = getMainWindow();
+                const islandWindow = getIslandWindow();
+                if (mainWindow) mainWindow.webContents.send('transcription-data', data);
+                if (islandWindow) islandWindow.webContents.send('transcription-data', data);
+            } catch (err) {
+                console.error('❌ Failed to parse message:', err.message);
+            }
         });
 
         assemblySocket.on('error', (err) => {
+            console.error('❌ WebSocket Error:', err.message);
             const mainWindow = getMainWindow();
             if (mainWindow) mainWindow.webContents.send('transcription-status', 'error', err.message);
         });
 
-        assemblySocket.on('close', () => {
+        assemblySocket.on('close', (code, reason) => {
+            console.log(`ℹ️ AssemblyAI WebSocket Closed | Code: ${code} | Reason: ${reason || 'No reason provided'}`);
             assemblySocket = null;
             const mainWindow = getMainWindow();
             if (mainWindow) mainWindow.webContents.send('transcription-status', 'disconnected');

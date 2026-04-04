@@ -271,8 +271,9 @@ function setupEventListeners() {
     window.electronAPI.onTriggerAiSearch(() => {
         const lastTranscript = AssemblyService.getLastFinalTranscript();
         if (lastTranscript) {
+            window.electronAPI.sendAiResponseToIsland('thinking...');
             promptInput.value = lastTranscript;
-            performSearch();
+            performSearch(true); // passed true for isF10
         }
     });
 
@@ -322,7 +323,7 @@ function setupEventListeners() {
     });
 }
 
-async function performSearch() {
+async function performSearch(isF10 = false) {
     const text = promptInput.value.trim();
     const modelSelection = modelSelect.value;
     if (!text || !modelSelection) return;
@@ -355,9 +356,17 @@ async function performSearch() {
                 if (msg.reasoning_details) reasoningHtml = UI.renderReasoningTrace(msg.reasoning_details);
             }
         }
+        
         resultContent.innerHTML = reasoningHtml + parseMarkdown(currentRawResponse);
+        
+        // If this search was triggered by F10, send it to the Island UI
+        if (isF10 && currentRawResponse) {
+            window.electronAPI.sendAiResponseToIsland(currentRawResponse);
+        }
+
     } catch (err) {
         UI.showError(resultContent, err);
+        if (isF10) window.electronAPI.sendAiResponseToIsland('Error: Could not reach AI');
     } finally {
         searchBtn.disabled = false;
         chatStage.scrollTo({ top: 0, behavior: 'smooth' });

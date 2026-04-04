@@ -15,6 +15,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // LLM
     ollamaCall: (url, options) => ipcRenderer.invoke('ollama-call', { url, options }),
 
+    // AI & Island Logic
+    sendAiResponseToIsland: (text) => ipcRenderer.send('send-ai-to-island', text),
+    onAiResponse: (callback) => ipcRenderer.on('ai-response', (event, value) => callback(value)),
+
     // Voice & Transcription
     getDesktopSourceId: () => ipcRenderer.invoke('get-desktop-source-id'),
     startTranscription: (apiKey) => ipcRenderer.invoke('start-transcription', apiKey),

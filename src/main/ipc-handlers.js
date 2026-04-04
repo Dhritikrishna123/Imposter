@@ -108,6 +108,15 @@ function registerIpcHandlers() {
     });
     
     ipcMain.on('close-island-window', closeIslandWindow);
+
+    // AI Relay to Island
+    ipcMain.on('send-ai-to-island', (event, text) => {
+        const { getIslandWindow } = require('./window-manager');
+        const islandWindow = getIslandWindow();
+        if (islandWindow) {
+            islandWindow.webContents.send('ai-response', text);
+        }
+    });
 }
 
 module.exports = { registerIpcHandlers };
