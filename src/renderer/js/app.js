@@ -25,6 +25,9 @@ const settingsNameInput = document.getElementById('settings-name');
 const settingsPromptInput = document.getElementById('settings-prompt');
 const settingsAppMode = document.getElementById('settings-app-mode');
 const settingsAssemblyKey = document.getElementById('settings-assembly-key');
+const settingsResume = document.getElementById('settings-resume');
+const settingsJd = document.getElementById('settings-jd');
+const settingsPersona = document.getElementById('settings-persona');
 const voiceTestStatus = document.getElementById('voice-test-status');
 
 // Window Controls
@@ -200,6 +203,9 @@ function setupEventListeners() {
         settingsPromptInput.value = userConfig.systemPrompt;
         settingsAppMode.value = userConfig.appMode || 'stealth';
         settingsAssemblyKey.value = userConfig.assemblyKey || '';
+        settingsResume.value = userConfig.resumeContent || '';
+        settingsJd.value = userConfig.jobDescription || '';
+        settingsPersona.value = userConfig.persona || 'engineer';
         settingsOverlay.classList.remove('hidden');
     });
 
@@ -212,7 +218,11 @@ function setupEventListeners() {
         const assemblyKey = settingsAssemblyKey.value.trim();
 
         if (name) {
-            userConfig = Config.saveConfig(name, prompt, appMode, assemblyKey);
+            userConfig = Config.saveConfig(name, prompt, appMode, assemblyKey, {
+                resumeContent: settingsResume.value.trim(),
+                jobDescription: settingsJd.value.trim(),
+                persona: settingsPersona.value
+            });
             UI.updateGreeting(document.getElementById('greeting-container'), userConfig.name);
             applyAppMode(appMode);
             settingsOverlay.classList.add('hidden');
@@ -378,8 +388,9 @@ async function performSearch(isF10 = false) {
 
     if (conversationHistory.length === 0) {
         resultContent.innerHTML = '';
-        if (userConfig.systemPrompt && provider === 'ollama') {
-            conversationHistory.push({ role: 'system', content: userConfig.systemPrompt });
+        const fullSystemPrompt = Config.buildSystemPrompt(userConfig);
+        if (fullSystemPrompt && provider === 'ollama') {
+            conversationHistory.push({ role: 'system', content: fullSystemPrompt });
         }
     }
 
@@ -407,10 +418,11 @@ async function performSearch(isF10 = false) {
             currentRawResponse = responseData.message?.content || responseData.response || '';
         } else if (provider === 'openrouter') {
             const orMessages = conversationHistory.filter(m => m.role !== 'system');
+            const fullSystemPrompt = Config.buildSystemPrompt(userConfig);
             const data = await API.generateOpenRouterResponse(apiKey, {
                 model: modelId,
                 messages: orMessages,
-                system_prompt: userConfig.systemPrompt || undefined,
+                system_prompt: fullSystemPrompt || undefined,
                 reasoning: { enabled: true }
             });
             if (data.choices && data.choices[0]) {

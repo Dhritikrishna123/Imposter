@@ -138,10 +138,58 @@
                         </div>
                         <div id="tab-ai-config" class="tab-pane">
                             <h2>AI Intelligence</h2>
+
                             <div class="field-group">
                                 <label>Systematic Override</label>
-                                <textarea id="settings-prompt" rows="5"></textarea>
-                                <p class="field-hint">Global instructions for every query.</p>
+                                <textarea id="settings-prompt" rows="3"></textarea>
+                                <p class="field-hint">Global instructions injected into every query.</p>
+                            </div>
+
+                            <div class="field-group" style="margin-top: 20px;">
+                                <label>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 6px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                                    Interview Persona
+                                </label>
+                                <select id="settings-persona" style="width: 100%; padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 13px;">
+                                    <optgroup label="Engineering">
+                                        <option value="engineer">Software Engineer (General)</option>
+                                        <option value="frontend">Frontend Engineer</option>
+                                        <option value="backend">Backend Engineer</option>
+                                        <option value="fullstack">Full Stack Engineer</option>
+                                        <option value="mobile">Mobile App Developer</option>
+                                        <option value="devops">DevOps / Cloud Engineer</option>
+                                        <option value="ml">ML / AI Engineer</option>
+                                        <option value="qa">QA / Test Engineer</option>
+                                    </optgroup>
+                                    <optgroup label="Leadership & Strategy">
+                                        <option value="architect">System Architect</option>
+                                        <option value="manager">Engineering Manager</option>
+                                        <option value="analyst">Data / Business Analyst</option>
+                                        <option value="product">Product Manager</option>
+                                    </optgroup>
+                                    <optgroup label="Other">
+                                        <option value="default">None (Raw Prompt Only)</option>
+                                    </optgroup>
+                                </select>
+                                <p class="field-hint">Adjusts the AI's tone and focus area automatically.</p>
+                            </div>
+
+                            <div class="field-group" style="margin-top: 20px;">
+                                <label>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                                    Resume / Experience
+                                </label>
+                                <textarea id="settings-resume" rows="6" placeholder="Paste your resume, key projects, or career highlights here. The AI will reference this when answering behavioral and experience-based questions." style="font-size: 12.5px;"></textarea>
+                                <p class="field-hint">The AI will cite your real experience instead of giving generic answers.</p>
+                            </div>
+
+                            <div class="field-group" style="margin-top: 20px;">
+                                <label>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 6px;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                                    Target Job Description
+                                </label>
+                                <textarea id="settings-jd" rows="6" placeholder="Paste the job description you're interviewing for. The AI will prioritize technologies and skills mentioned here." style="font-size: 12.5px;"></textarea>
+                                <p class="field-hint">AI will tailor responses to highlight JD-relevant skills.</p>
                             </div>
                         </div>
                         <div id="tab-app-config" class="tab-pane">
