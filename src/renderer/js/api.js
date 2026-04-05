@@ -11,7 +11,7 @@ export async function fetchModels() {
 }
 
 export async function generateOllamaResponse(baseUrl, payload) {
-    const targetUrl = `${baseUrl}/api/generate`;
+    const targetUrl = `${baseUrl}/api/chat`;
     return await window.electronAPI.ollamaCall(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
