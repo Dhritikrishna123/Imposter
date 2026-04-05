@@ -4,53 +4,70 @@ import * as UI from './ui.js';
 import { setupMarkdown, parseMarkdown } from './markdown.js';
 import { AssemblyService } from './assembly-service.js';
 
-// DOM Elements
-const promptInput = document.getElementById('prompt-input');
-const searchBtn = document.getElementById('search-btn');
-const resultContent = document.getElementById('result-content');
-const modelSelect = document.getElementById('modelSelect');
-const statusDot = document.getElementById('connectionStatus');
-const statusText = document.getElementById('statusText');
-const chatStage = document.getElementById('chat-stage');
-const clearChatBtn = document.getElementById('clear-chat-btn');
+// ── Global Error Handlers (Renderer) ────────────────────────────────────────
+
+window.onerror = (message, source, lineno, colno, error) => {
+    console.error('[RENDERER ERROR]', message, `at ${source}:${lineno}:${colno}`, error);
+    return true; // Prevent default error dialog
+};
+
+window.onunhandledrejection = (event) => {
+    console.error('[RENDERER UNHANDLED REJECTION]', event.reason);
+    event.preventDefault();
+};
+
+// ── DOM Elements (with safe fallbacks) ──────────────────────────────────────
+
+function $(id) {
+    return document.getElementById(id);
+}
+
+const promptInput = $('prompt-input');
+const searchBtn = $('search-btn');
+const resultContent = $('result-content');
+const modelSelect = $('modelSelect');
+const statusDot = $('connectionStatus');
+const statusText = $('statusText');
+const chatStage = $('chat-stage');
+const clearChatBtn = $('clear-chat-btn');
 
 // Overlays
-const onboardingOverlay = document.getElementById('onboarding-overlay');
-const settingsOverlay = document.getElementById('settings-overlay');
+const onboardingOverlay = $('onboarding-overlay');
+const settingsOverlay = $('settings-overlay');
 
 // Form Inputs
-const userNameInput = document.getElementById('user-name');
-const systemPromptInput = document.getElementById('system-prompt');
-const settingsNameInput = document.getElementById('settings-name');
-const settingsPromptInput = document.getElementById('settings-prompt');
-const settingsAppMode = document.getElementById('settings-app-mode');
-const settingsAssemblyKey = document.getElementById('settings-assembly-key');
-const settingsResume = document.getElementById('settings-resume');
-const settingsJd = document.getElementById('settings-jd');
-const settingsPersona = document.getElementById('settings-persona');
-const voiceTestStatus = document.getElementById('voice-test-status');
+const userNameInput = $('user-name');
+const systemPromptInput = $('system-prompt');
+const settingsNameInput = $('settings-name');
+const settingsPromptInput = $('settings-prompt');
+const settingsAppMode = $('settings-app-mode');
+const settingsAssemblyKey = $('settings-assembly-key');
+const settingsResume = $('settings-resume');
+const settingsJd = $('settings-jd');
+const settingsPersona = $('settings-persona');
+const voiceTestStatus = $('voice-test-status');
 
 // Window Controls
-const windowControls = document.getElementById('window-controls');
-const winMinBtn = document.getElementById('win-min-btn');
-const winCloseBtn = document.getElementById('win-close-btn');
+const windowControls = $('window-controls');
+const winMinBtn = $('win-min-btn');
+const winCloseBtn = $('win-close-btn');
 
 // Model Management Elements
-const customModelsList = document.getElementById('custom-models-list');
-const newModelProvider = document.getElementById('new-model-provider');
-const newModelLabel = document.getElementById('new-model-label');
-const newModelId = document.getElementById('new-model-id');
-const newModelKey = document.getElementById('new-model-key');
-const newModelUrl = document.getElementById('new-model-url');
-const addModelBtn = document.getElementById('add-model-btn');
-const apiKeyGroup = document.getElementById('api-key-group');
-const baseUrlGroup = document.getElementById('base-url-group');
+const customModelsList = $('custom-models-list');
+const newModelProvider = $('new-model-provider');
+const newModelLabel = $('new-model-label');
+const newModelId = $('new-model-id');
+const newModelKey = $('new-model-key');
+const newModelUrl = $('new-model-url');
+const addModelBtn = $('add-model-btn');
+const apiKeyGroup = $('api-key-group');
+const baseUrlGroup = $('base-url-group');
 
 // Buttons
-const saveConfigBtn = document.getElementById('save-config-btn');
-const settingsBtn = document.getElementById('settings-link');
-const testVoiceBtn = document.getElementById('test-voice-btn');
-const saveSettingsBtn = document.getElementById('save-settings');
+const saveConfigBtn = $('save-config-btn');
+const settingsBtn = $('settings-link');
+const testVoiceBtn = $('test-voice-btn');
+const saveSettingsBtn = $('save-settings');
 
 // State
 let userConfig = Config.getDefaultConfig();
@@ -63,359 +80,491 @@ let conversationHistory = [];
 let emptyStateHtml = '';
 
 async function init() {
-    setupMarkdown();
-    loadAppConfig();
+    try {
+        setupMarkdown();
+        loadAppConfig();
 
-    emptyStateHtml = resultContent.innerHTML;
-    customModels = Config.getSavedModels();
-    applyAppMode(userConfig.appMode || 'stealth');
-    await loadModels();
-    setupEventListeners();
-    renderCustomModelsList();
+        emptyStateHtml = resultContent ? resultContent.innerHTML : '';
+        customModels = Config.getSavedModels();
+        applyAppMode(userConfig.appMode || 'stealth');
+        await loadModels();
+        setupEventListeners();
+        renderCustomModelsList();
+    } catch (err) {
+        console.error('[INIT] App initialization error:', err);
+    }
 }
 
 function applyAppMode(mode) {
-    if (window.electronAPI && window.electronAPI.setAppMode) {
-        window.electronAPI.setAppMode(mode);
-    }
-    if (mode === 'normal') {
-        windowControls.style.display = 'flex';
-    } else {
-        windowControls.style.display = 'none';
+    try {
+        if (window.electronAPI && window.electronAPI.setAppMode) {
+            window.electronAPI.setAppMode(mode);
+        }
+        if (windowControls) {
+            windowControls.style.display = mode === 'normal' ? 'flex' : 'none';
+        }
+    } catch (err) {
+        console.error('[APP] Mode switch error:', err);
     }
 }
 
 function loadAppConfig() {
-    const saved = Config.getSavedConfig();
-    if (saved) {
-        userConfig = saved;
-        onboardingOverlay.classList.add('hidden');
-        UI.updateGreeting(document.getElementById('greeting-container'), userConfig.name);
-    } else {
-        onboardingOverlay.classList.remove('hidden');
+    try {
+        const saved = Config.getSavedConfig();
+        if (saved) {
+            userConfig = saved;
+            if (onboardingOverlay) onboardingOverlay.classList.add('hidden');
+            UI.updateGreeting($('greeting-container'), userConfig.name);
+        } else {
+            if (onboardingOverlay) onboardingOverlay.classList.remove('hidden');
+        }
+    } catch (err) {
+        console.error('[APP] Config load error:', err);
+        if (onboardingOverlay) onboardingOverlay.classList.remove('hidden');
     }
 }
 
 async function loadModels() {
-    statusDot.className = 'dot offline';
-    statusText.textContent = 'Scanning...';
+    try {
+        if (statusDot) statusDot.className = 'dot offline';
+        if (statusText) statusText.textContent = 'Scanning...';
 
-    const ollamaModels = await API.fetchModels();
-    modelSelect.innerHTML = '';
+        const ollamaModels = await API.fetchModels();
+        if (modelSelect) modelSelect.innerHTML = '';
 
-    if (ollamaModels) {
-        ollamaModels.forEach(m => {
-            const opt = document.createElement('option');
-            opt.value = `ollama|${m.name}|http://127.0.0.1:11434`;
-            opt.textContent = `Local: ${m.name}`;
-            modelSelect.appendChild(opt);
-        });
-    }
+        if (ollamaModels && Array.isArray(ollamaModels)) {
+            ollamaModels.forEach(m => {
+                if (!m || !m.name) return;
+                const opt = document.createElement('option');
+                opt.value = `ollama|${m.name}|http://127.0.0.1:11434`;
+                opt.textContent = `Local: ${m.name}`;
+                if (modelSelect) modelSelect.appendChild(opt);
+            });
+        }
 
-    if (customModels && customModels.length > 0) {
-        customModels.forEach(m => {
-            const opt = document.createElement('option');
-            opt.value = `${m.provider}|${m.modelId}|${m.baseUrl}|${m.apiKey}`;
-            opt.textContent = `${m.name}`;
-            modelSelect.appendChild(opt);
-        });
-    }
+        if (customModels && customModels.length > 0) {
+            customModels.forEach(m => {
+                if (!m || !m.modelId) return;
+                const opt = document.createElement('option');
+                opt.value = `${m.provider}|${m.modelId}|${m.baseUrl}|${m.apiKey}`;
+                opt.textContent = `${m.name || m.modelId}`;
+                if (modelSelect) modelSelect.appendChild(opt);
+            });
+        }
 
-    if (modelSelect.options.length > 0) {
-        statusDot.className = 'dot online';
-        statusText.textContent = 'Ready';
-    } else {
-        statusText.textContent = 'No Models';
+        if (modelSelect && modelSelect.options.length > 0) {
+            if (statusDot) statusDot.className = 'dot online';
+            if (statusText) statusText.textContent = 'Ready';
+        } else {
+            if (statusText) statusText.textContent = 'No Models';
+        }
+    } catch (err) {
+        console.error('[APP] Model loading error:', err);
+        if (statusText) statusText.textContent = 'Scan Failed';
     }
 }
 
 function renderCustomModelsList() {
     if (!customModelsList) return;
-    customModelsList.innerHTML = '';
-    customModels.forEach((m, index) => {
-        const item = document.createElement('div');
-        item.className = 'model-item';
-        item.innerHTML = `
-            <div class="model-info">
-                <strong>${m.name}</strong>
-                <span>${m.provider} - ${m.modelId}</span>
-            </div>
-            <button class="secondary-btn delete-model-btn" data-index="${index}" style="padding: 6px 12px; font-size: 12px; color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3);">Remove</button>
-        `;
-        customModelsList.appendChild(item);
-    });
-
-    document.querySelectorAll('.delete-model-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const index = btn.getAttribute('data-index');
-            customModels.splice(index, 1);
-            Config.saveModels(customModels);
-            renderCustomModelsList();
-            loadModels();
+    try {
+        customModelsList.innerHTML = '';
+        customModels.forEach((m, index) => {
+            if (!m) return;
+            const item = document.createElement('div');
+            item.className = 'model-item';
+            const safeName = (m.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const safeProvider = (m.provider || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const safeModelId = (m.modelId || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            item.innerHTML = `
+                <div class="model-info">
+                    <strong>${safeName}</strong>
+                    <span>${safeProvider} - ${safeModelId}</span>
+                </div>
+                <button class="secondary-btn delete-model-btn" data-index="${index}" style="padding: 6px 12px; font-size: 12px; color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3);">Remove</button>
+            `;
+            customModelsList.appendChild(item);
         });
-    });
+
+        document.querySelectorAll('.delete-model-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                try {
+                    const index = parseInt(btn.getAttribute('data-index'), 10);
+                    if (!isNaN(index) && index >= 0 && index < customModels.length) {
+                        customModels.splice(index, 1);
+                        Config.saveModels(customModels);
+                        renderCustomModelsList();
+                        loadModels();
+                    }
+                } catch (err) {
+                    console.error('[APP] Model delete error:', err);
+                }
+            });
+        });
+    } catch (err) {
+        console.error('[APP] Model list render error:', err);
+    }
 }
 
 function setupEventListeners() {
-    promptInput.addEventListener('input', () => UI.autoGrowTextarea(promptInput));
+    if (promptInput) promptInput.addEventListener('input', () => UI.autoGrowTextarea(promptInput));
 
-    newModelProvider.addEventListener('change', () => {
-        const provider = newModelProvider.value;
-        apiKeyGroup.style.display = provider === 'openrouter' ? 'block' : 'none';
-        baseUrlGroup.style.display = provider === 'ollama' ? 'block' : 'none';
-        if (provider === 'openrouter') {
-            newModelId.placeholder = 'e.g. qwen/qwen3.6-plus:free';
-            newModelUrl.value = '';
-        } else {
-            newModelId.placeholder = 'e.g. llama3';
-            newModelUrl.value = 'http://127.0.0.1:11434';
-        }
-    });
-
-    addModelBtn.addEventListener('click', () => {
-        const name = newModelLabel.value.trim();
-        const modelId = newModelId.value.trim();
-        const provider = newModelProvider.value;
-        const apiKey = newModelKey.value.trim();
-        const baseUrl = newModelUrl.value.trim();
-
-        if (name && modelId) {
-            customModels.push({ name, modelId, provider, apiKey, baseUrl });
-            Config.saveModels(customModels);
-            renderCustomModelsList();
-            loadModels();
-            newModelLabel.value = '';
-            newModelId.value = '';
-            newModelKey.value = '';
-        }
-    });
-
-    searchBtn.addEventListener('click', performSearch);
-    promptInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            performSearch();
-        }
-    });
-
-    settingsBtn.addEventListener('click', () => {
-        settingsNameInput.value = userConfig.name;
-        settingsPromptInput.value = userConfig.systemPrompt;
-        settingsAppMode.value = userConfig.appMode || 'stealth';
-        settingsAssemblyKey.value = userConfig.assemblyKey || '';
-        settingsResume.value = userConfig.resumeContent || '';
-        settingsJd.value = userConfig.jobDescription || '';
-        settingsPersona.value = userConfig.persona || 'engineer';
-        settingsOverlay.classList.remove('hidden');
-    });
-
-    document.getElementById('close-settings').addEventListener('click', () => settingsOverlay.classList.add('hidden'));
-
-    saveSettingsBtn.addEventListener('click', () => {
-        const name = settingsNameInput.value.trim();
-        const prompt = settingsPromptInput.value.trim();
-        const appMode = settingsAppMode.value;
-        const assemblyKey = settingsAssemblyKey.value.trim();
-
-        if (name) {
-            userConfig = Config.saveConfig(name, prompt, appMode, assemblyKey, {
-                resumeContent: settingsResume.value.trim(),
-                jobDescription: settingsJd.value.trim(),
-                persona: settingsPersona.value
-            });
-            UI.updateGreeting(document.getElementById('greeting-container'), userConfig.name);
-            applyAppMode(appMode);
-            settingsOverlay.classList.add('hidden');
-            statusText.textContent = 'Settings Saved';
-            setTimeout(() => statusText.textContent = 'Ready', 2000);
-        }
-    });
-
-    testVoiceBtn.addEventListener('click', async () => {
-        const key = settingsAssemblyKey.value.trim();
-        if (!key) {
-            voiceTestStatus.textContent = '❌ Please enter an API key';
-            return;
-        }
-
-        voiceTestStatus.textContent = 'Testing...';
-        const result = await window.electronAPI.testAssemblyKey(key);
-        if (result.success) {
-            voiceTestStatus.textContent = '✅ Connection Successful!';
-            voiceTestStatus.style.color = '#00ffcc';
-        } else {
-            voiceTestStatus.textContent = `❌ Failed: ${result.error}`;
-            voiceTestStatus.style.color = '#ff4d4d';
-        }
-    });
-
-    saveConfigBtn.addEventListener('click', () => {
-        const name = userNameInput.value.trim();
-        const prompt = systemPromptInput.value.trim();
-        if (name) {
-            userConfig = Config.saveConfig(name, prompt, 'stealth', '');
-            onboardingOverlay.classList.add('hidden');
-            if (conversationHistory.length === 0) {
-                UI.updateGreeting(resultContent.querySelector('#greeting-container'), userConfig.name);
-            }
-        }
-    });
-
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabId = btn.getAttribute('data-tab');
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.querySelectorAll('.tab-pane').forEach(p => {
-                p.classList.toggle('active', p.id === `tab-${tabId}`);
-            });
-            saveSettingsBtn.style.display = (tabId === 'shortcuts' || tabId === 'about') ? 'none' : 'block';
-        });
-    });
-
-    if (winMinBtn) winMinBtn.addEventListener('click', () => window.electronAPI.minimizeApp());
-    if (winCloseBtn) winCloseBtn.addEventListener('click', () => window.electronAPI.closeApp());
-
-    window.electronAPI.onFocusInput(() => promptInput.focus());
-    window.electronAPI.onTriggerSearch(() => performSearch());
-    window.electronAPI.onScroll((dir) => chatStage.scrollBy({ top: dir * 150, behavior: 'smooth' }));
-    window.electronAPI.onCopyMain(() => {
-        if (currentRawResponse) {
-            navigator.clipboard.writeText(currentRawResponse);
-            statusText.textContent = 'Copied!';
-            setTimeout(() => statusText.textContent = 'Ready', 2000);
-        }
-    });
-
-    window.electronAPI.onTriggerAiSearch(() => {
-        const lastTranscript = AssemblyService.getLastFinalTranscript();
-        if (lastTranscript) {
-            window.electronAPI.sendAiResponseToIsland('thinking...');
-            promptInput.value = lastTranscript;
-            performSearch(true);
-        }
-    });
-
-    window.electronAPI.onToggleAutoReply(async () => {
-        if (isRecording) {
-            AssemblyService.stop();
-            window.electronAPI.closeIslandWindow();
-            isRecording = false;
-            statusText.textContent = 'Ready';
-        } else {
+    if (newModelProvider) {
+        newModelProvider.addEventListener('change', () => {
             try {
-                if (!userConfig.assemblyKey) {
-                    statusText.textContent = 'Missing API Key';
+                const provider = newModelProvider.value;
+                if (apiKeyGroup) apiKeyGroup.style.display = provider === 'openrouter' ? 'block' : 'none';
+                if (baseUrlGroup) baseUrlGroup.style.display = provider === 'ollama' ? 'block' : 'none';
+                if (provider === 'openrouter') {
+                    if (newModelId) newModelId.placeholder = 'e.g. qwen/qwen3.6-plus:free';
+                    if (newModelUrl) newModelUrl.value = '';
+                } else {
+                    if (newModelId) newModelId.placeholder = 'e.g. llama3';
+                    if (newModelUrl) newModelUrl.value = 'http://127.0.0.1:11434';
+                }
+            } catch (err) {
+                console.error('[APP] Provider change error:', err);
+            }
+        });
+    }
+
+    if (addModelBtn) {
+        addModelBtn.addEventListener('click', () => {
+            try {
+                const name = newModelLabel ? newModelLabel.value.trim() : '';
+                const modelId = newModelId ? newModelId.value.trim() : '';
+                const provider = newModelProvider ? newModelProvider.value : 'ollama';
+                const apiKey = newModelKey ? newModelKey.value.trim() : '';
+                const baseUrl = newModelUrl ? newModelUrl.value.trim() : '';
+
+                if (name && modelId) {
+                    customModels.push({ name, modelId, provider, apiKey, baseUrl });
+                    Config.saveModels(customModels);
+                    renderCustomModelsList();
+                    loadModels();
+                    if (newModelLabel) newModelLabel.value = '';
+                    if (newModelId) newModelId.value = '';
+                    if (newModelKey) newModelKey.value = '';
+                }
+            } catch (err) {
+                console.error('[APP] Add model error:', err);
+            }
+        });
+    }
+
+    if (searchBtn) searchBtn.addEventListener('click', performSearch);
+    if (promptInput) {
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                performSearch();
+            }
+        });
+    }
+
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            try {
+                if (settingsNameInput) settingsNameInput.value = userConfig.name || '';
+                if (settingsPromptInput) settingsPromptInput.value = userConfig.systemPrompt || '';
+                if (settingsAppMode) settingsAppMode.value = userConfig.appMode || 'stealth';
+                if (settingsAssemblyKey) settingsAssemblyKey.value = userConfig.assemblyKey || '';
+                if (settingsResume) settingsResume.value = userConfig.resumeContent || '';
+                if (settingsJd) settingsJd.value = userConfig.jobDescription || '';
+                if (settingsPersona) settingsPersona.value = userConfig.persona || 'engineer';
+                if (settingsOverlay) settingsOverlay.classList.remove('hidden');
+            } catch (err) {
+                console.error('[APP] Settings open error:', err);
+            }
+        });
+    }
+
+    const closeSettingsEl = $('close-settings');
+    if (closeSettingsEl) closeSettingsEl.addEventListener('click', () => {
+        if (settingsOverlay) settingsOverlay.classList.add('hidden');
+    });
+
+    if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', () => {
+            try {
+                const name = settingsNameInput ? settingsNameInput.value.trim() : '';
+                const prompt = settingsPromptInput ? settingsPromptInput.value.trim() : '';
+                const appMode = settingsAppMode ? settingsAppMode.value : 'stealth';
+                const assemblyKey = settingsAssemblyKey ? settingsAssemblyKey.value.trim() : '';
+
+                if (name) {
+                    userConfig = Config.saveConfig(name, prompt, appMode, assemblyKey, {
+                        resumeContent: settingsResume ? settingsResume.value.trim() : '',
+                        jobDescription: settingsJd ? settingsJd.value.trim() : '',
+                        persona: settingsPersona ? settingsPersona.value : 'engineer'
+                    });
+                    UI.updateGreeting($('greeting-container'), userConfig.name);
+                    applyAppMode(appMode);
+                    if (settingsOverlay) settingsOverlay.classList.add('hidden');
+                    if (statusText) statusText.textContent = 'Settings Saved';
+                    setTimeout(() => { if (statusText) statusText.textContent = 'Ready'; }, 2000);
+                }
+            } catch (err) {
+                console.error('[APP] Settings save error:', err);
+            }
+        });
+    }
+
+    if (testVoiceBtn) {
+        testVoiceBtn.addEventListener('click', async () => {
+            try {
+                const key = settingsAssemblyKey ? settingsAssemblyKey.value.trim() : '';
+                if (!key) {
+                    if (voiceTestStatus) voiceTestStatus.textContent = '❌ Please enter an API key';
                     return;
                 }
 
-                statusText.textContent = 'Connecting...';
-                const started = await AssemblyService.start(userConfig.assemblyKey);
-
-                if (started) {
-                    window.electronAPI.openIslandWindow();
-                    isRecording = true;
-                    statusText.textContent = 'Live • Recording';
+                if (voiceTestStatus) voiceTestStatus.textContent = 'Testing...';
+                const result = await window.electronAPI.testAssemblyKey(key);
+                if (result && result.success) {
+                    if (voiceTestStatus) {
+                        voiceTestStatus.textContent = '✅ Connection Successful!';
+                        voiceTestStatus.style.color = '#00ffcc';
+                    }
                 } else {
-                    statusText.textContent = 'Failed to Start';
+                    if (voiceTestStatus) {
+                        voiceTestStatus.textContent = `❌ Failed: ${(result && result.error) || 'Unknown error'}`;
+                        voiceTestStatus.style.color = '#ff4d4d';
+                    }
                 }
             } catch (err) {
-                statusText.textContent = 'Mic Error';
+                console.error('[APP] Voice test error:', err);
+                if (voiceTestStatus) {
+                    voiceTestStatus.textContent = `❌ Error: ${err.message}`;
+                    voiceTestStatus.style.color = '#ff4d4d';
+                }
             }
-        }
+        });
+    }
+
+    if (saveConfigBtn) {
+        saveConfigBtn.addEventListener('click', () => {
+            try {
+                const name = userNameInput ? userNameInput.value.trim() : '';
+                const prompt = systemPromptInput ? systemPromptInput.value.trim() : '';
+                if (name) {
+                    userConfig = Config.saveConfig(name, prompt, 'stealth', '');
+                    if (onboardingOverlay) onboardingOverlay.classList.add('hidden');
+                    if (conversationHistory.length === 0 && resultContent) {
+                        UI.updateGreeting(resultContent.querySelector('#greeting-container'), userConfig.name);
+                    }
+                }
+            } catch (err) {
+                console.error('[APP] Config save error:', err);
+            }
+        });
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            try {
+                const tabId = btn.getAttribute('data-tab');
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelectorAll('.tab-pane').forEach(p => {
+                    p.classList.toggle('active', p.id === `tab-${tabId}`);
+                });
+                if (saveSettingsBtn) {
+                    saveSettingsBtn.style.display = (tabId === 'shortcuts' || tabId === 'about') ? 'none' : 'block';
+                }
+            } catch (err) {
+                console.error('[APP] Tab switch error:', err);
+            }
+        });
     });
 
-    if (window.electronAPI.onOcrResult) {
-        window.electronAPI.onOcrResult((text) => {
-            promptInput.value += (promptInput.value ? '\n' : '') + text;
-            UI.autoGrowTextarea(promptInput);
-            promptInput.focus();
+    if (winMinBtn) winMinBtn.addEventListener('click', () => {
+        try { window.electronAPI.minimizeApp(); } catch (_) {}
+    });
+    if (winCloseBtn) winCloseBtn.addEventListener('click', () => {
+        try { window.electronAPI.closeApp(); } catch (_) {}
+    });
+
+    if (window.electronAPI) {
+        window.electronAPI.onFocusInput(() => { if (promptInput) promptInput.focus(); });
+        window.electronAPI.onTriggerSearch(() => performSearch());
+        window.electronAPI.onScroll((dir) => {
+            if (chatStage) chatStage.scrollBy({ top: dir * 150, behavior: 'smooth' });
         });
+        window.electronAPI.onCopyMain(() => {
+            try {
+                if (currentRawResponse) {
+                    navigator.clipboard.writeText(currentRawResponse).catch(() => {});
+                    if (statusText) statusText.textContent = 'Copied!';
+                    setTimeout(() => { if (statusText) statusText.textContent = 'Ready'; }, 2000);
+                }
+            } catch (err) {
+                console.error('[APP] Copy error:', err);
+            }
+        });
+
+        window.electronAPI.onTriggerAiSearch(() => {
+            try {
+                const lastTranscript = AssemblyService.getLastFinalTranscript();
+                if (lastTranscript) {
+                    window.electronAPI.sendAiResponseToIsland('thinking...');
+                    if (promptInput) promptInput.value = lastTranscript;
+                    performSearch(true);
+                }
+            } catch (err) {
+                console.error('[APP] F10 AI search error:', err);
+            }
+        });
+
+        window.electronAPI.onToggleAutoReply(async () => {
+            if (isRecording) {
+                try {
+                    AssemblyService.stop();
+                    window.electronAPI.closeIslandWindow();
+                } catch (_) {}
+                isRecording = false;
+                if (statusText) statusText.textContent = 'Ready';
+            } else {
+                try {
+                    if (!userConfig.assemblyKey) {
+                        if (statusText) statusText.textContent = 'Missing API Key';
+                        return;
+                    }
+
+                    if (statusText) statusText.textContent = 'Connecting...';
+                    const started = await AssemblyService.start(userConfig.assemblyKey);
+
+                    if (started) {
+                        window.electronAPI.openIslandWindow();
+                        isRecording = true;
+                        if (statusText) statusText.textContent = 'Live • Recording';
+                    } else {
+                        if (statusText) statusText.textContent = 'Failed to Start';
+                    }
+                } catch (err) {
+                    console.error('[APP] Voice toggle error:', err);
+                    if (statusText) statusText.textContent = 'Mic Error';
+                }
+            }
+        });
+
+        if (window.electronAPI.onOcrResult) {
+            window.electronAPI.onOcrResult((text) => {
+                try {
+                    if (promptInput && text) {
+                        promptInput.value += (promptInput.value ? '\n' : '') + text;
+                        UI.autoGrowTextarea(promptInput);
+                        promptInput.focus();
+                    }
+                } catch (err) {
+                    console.error('[APP] OCR result error:', err);
+                }
+            });
+        }
     }
 
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            settingsOverlay.classList.add('hidden');
-            onboardingOverlay.classList.add('hidden');
+            if (settingsOverlay) settingsOverlay.classList.add('hidden');
+            if (onboardingOverlay) onboardingOverlay.classList.add('hidden');
         }
     });
+
     if (clearChatBtn) {
         clearChatBtn.addEventListener('click', () => {
-            conversationHistory = [];
-            resultContent.innerHTML = emptyStateHtml;
-            UI.updateGreeting(resultContent.querySelector('#greeting-container'), userConfig.name);
+            try {
+                conversationHistory = [];
+                if (resultContent) {
+                    resultContent.innerHTML = emptyStateHtml;
+                    UI.updateGreeting(resultContent.querySelector('#greeting-container'), userConfig.name);
+                }
+            } catch (err) {
+                console.error('[APP] Clear chat error:', err);
+            }
         });
     }
 }
 
 function appendChatMessage(msg) {
-    if (msg.role === 'system') return null;
+    if (!msg || msg.role === 'system' || !resultContent) return null;
 
-    if (conversationHistory.length === 1 && conversationHistory[0] === msg) {
-        resultContent.innerHTML = '';
-    }
-
-    const bubble = document.createElement('div');
-    if (msg.role === 'user') {
-        bubble.className = 'chat-message-user';
-        bubble.textContent = msg.content;
-    } else {
-        bubble.className = 'chat-message-ai markdown-body';
-        let htmlContent = parseMarkdown(msg.content || '');
-        if (msg.reasoningHtml) htmlContent = msg.reasoningHtml + htmlContent;
-
-        if (msg.isError) {
-            UI.showError(bubble, { message: msg.content });
-        } else {
-            bubble.innerHTML = htmlContent;
+    try {
+        if (conversationHistory.length === 1 && conversationHistory[0] === msg) {
+            resultContent.innerHTML = '';
         }
+
+        const bubble = document.createElement('div');
+        if (msg.role === 'user') {
+            bubble.className = 'chat-message-user';
+            bubble.textContent = msg.content || '';
+        } else {
+            bubble.className = 'chat-message-ai markdown-body';
+            let htmlContent = parseMarkdown(msg.content || '');
+            if (msg.reasoningHtml) htmlContent = msg.reasoningHtml + htmlContent;
+
+            if (msg.isError) {
+                UI.showError(bubble, { message: msg.content });
+            } else {
+                bubble.innerHTML = htmlContent;
+            }
+        }
+        resultContent.appendChild(bubble);
+        return bubble;
+    } catch (err) {
+        console.error('[APP] Chat message render error:', err);
+        return null;
     }
-    resultContent.appendChild(bubble);
-    return bubble;
 }
 
 async function performSearch(isF10 = false) {
-    if (searchBtn.disabled) return;
+    if (!searchBtn || searchBtn.disabled) return;
+    if (!promptInput || !modelSelect) return;
+
     const text = promptInput.value.trim();
     const modelSelection = modelSelect.value;
     if (!text || !modelSelection) return;
 
-    const [provider, modelId, baseUrl, apiKey] = modelSelection.split('|');
+    const parts = modelSelection.split('|');
+    const provider = parts[0] || '';
+    const modelId = parts[1] || '';
+    const baseUrl = parts[2] || '';
+    const apiKey = parts[3] || '';
+
     promptInput.value = '';
     promptInput.style.height = 'auto';
     currentRawResponse = '';
     searchBtn.disabled = true;
 
-    if (conversationHistory.length === 0) {
-        resultContent.innerHTML = '';
-        const fullSystemPrompt = Config.buildSystemPrompt(userConfig);
-        if (fullSystemPrompt && provider === 'ollama') {
-            conversationHistory.push({ role: 'system', content: fullSystemPrompt });
-        }
-    }
-
-    const userMsg = { role: 'user', content: text };
-    conversationHistory.push(userMsg);
-    appendChatMessage(userMsg);
-
-    const loadingBubble = document.createElement('div');
-    loadingBubble.className = 'chat-message-ai';
-    UI.showLoading(loadingBubble);
-    resultContent.appendChild(loadingBubble);
-    setTimeout(() => { chatStage.scrollTop = chatStage.scrollHeight; }, 10);
-    chatStage.scrollTop = chatStage.scrollHeight;
+    let loadingBubble = null;
 
     try {
-        let responseData;
+        if (conversationHistory.length === 0) {
+            if (resultContent) resultContent.innerHTML = '';
+            const fullSystemPrompt = Config.buildSystemPrompt(userConfig);
+            if (fullSystemPrompt && provider === 'ollama') {
+                conversationHistory.push({ role: 'system', content: fullSystemPrompt });
+            }
+        }
+
+        const userMsg = { role: 'user', content: text };
+        conversationHistory.push(userMsg);
+        appendChatMessage(userMsg);
+
+        loadingBubble = document.createElement('div');
+        loadingBubble.className = 'chat-message-ai';
+        UI.showLoading(loadingBubble);
+        if (resultContent) resultContent.appendChild(loadingBubble);
+        setTimeout(() => { if (chatStage) chatStage.scrollTop = chatStage.scrollHeight; }, 10);
+        if (chatStage) chatStage.scrollTop = chatStage.scrollHeight;
+
         let reasoningHtml = '';
 
         if (provider === 'ollama') {
-            responseData = await API.generateOllamaResponse(baseUrl, {
+            const responseData = await API.generateOllamaResponse(baseUrl, {
                 model: modelId,
                 messages: conversationHistory,
                 stream: false
             });
-            currentRawResponse = responseData.message?.content || responseData.response || '';
+            currentRawResponse = responseData?.message?.content || responseData?.response || '';
         } else if (provider === 'openrouter') {
             const orMessages = conversationHistory.filter(m => m.role !== 'system');
             const fullSystemPrompt = Config.buildSystemPrompt(userConfig);
@@ -425,10 +574,10 @@ async function performSearch(isF10 = false) {
                 system_prompt: fullSystemPrompt || undefined,
                 reasoning: { enabled: true }
             });
-            if (data.choices && data.choices[0]) {
+            if (data && data.choices && data.choices[0]) {
                 const msg = data.choices[0].message;
-                currentRawResponse = msg.content;
-                if (msg.reasoning_details) reasoningHtml = UI.renderReasoningTrace(msg.reasoning_details);
+                currentRawResponse = msg ? (msg.content || '') : '';
+                if (msg && msg.reasoning_details) reasoningHtml = UI.renderReasoningTrace(msg.reasoning_details);
             }
         }
 
@@ -439,28 +588,37 @@ async function performSearch(isF10 = false) {
         };
         conversationHistory.push(aiMsg);
 
-        // Replace loading UI with actual content block logic instead of recreating everything
-        resultContent.removeChild(loadingBubble);
+        if (loadingBubble && loadingBubble.parentNode) {
+            loadingBubble.parentNode.removeChild(loadingBubble);
+        }
         appendChatMessage(aiMsg);
 
         if (isF10 && currentRawResponse) {
-            window.electronAPI.sendAiResponseToIsland(currentRawResponse);
+            try { window.electronAPI.sendAiResponseToIsland(currentRawResponse); } catch (_) {}
         }
 
     } catch (err) {
+        console.error('[APP] Search error:', err);
         const errorMsg = {
             role: 'assistant',
-            content: err.message,
+            content: err.message || 'An unexpected error occurred',
             isError: true
         };
         conversationHistory.push(errorMsg);
-        resultContent.removeChild(loadingBubble);
+
+        if (loadingBubble && loadingBubble.parentNode) {
+            loadingBubble.parentNode.removeChild(loadingBubble);
+        }
         appendChatMessage(errorMsg);
 
-        if (isF10) window.electronAPI.sendAiResponseToIsland('Error: Could not reach AI');
+        if (isF10) {
+            try { window.electronAPI.sendAiResponseToIsland('Error: Could not reach AI'); } catch (_) {}
+        }
     } finally {
         searchBtn.disabled = false;
-        setTimeout(() => { chatStage.scrollTo({ top: chatStage.scrollHeight, behavior: 'smooth' }); }, 50);
+        setTimeout(() => {
+            if (chatStage) chatStage.scrollTo({ top: chatStage.scrollHeight, behavior: 'smooth' });
+        }, 50);
     }
 }
 

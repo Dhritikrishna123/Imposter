@@ -3,10 +3,17 @@ let sourceNode = null;
 let workletNode = null;
 let stream = null;
 let lastFinalTranscript = '';
+let isStarting = false;
 
 export const AssemblyService = {
     async start(apiKey) {
+        if (isStarting) return false;
+        isStarting = true;
+
         try {
+            // Clean up any previous session first
+            this.stop();
+
             stream = await navigator.mediaDevices.getDisplayMedia({
                 audio: true,
                 video: { width: 1, height: 1, frameRate: 1 }
@@ -36,53 +43,75 @@ export const AssemblyService = {
             workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
             
             workletNode.port.onmessage = (event) => {
-                const buffer = event.data;
-                const uint8Array = new Uint8Array(buffer);
-                let binary = '';
-                const len = uint8Array.byteLength;
-                for (let i = 0; i < len; i++) {
-                    binary += String.fromCharCode(uint8Array[i]);
+                try {
+                    const buffer = event.data;
+                    if (!buffer) return;
+                    const uint8Array = new Uint8Array(buffer);
+                    let binary = '';
+                    const len = uint8Array.byteLength;
+                    for (let i = 0; i < len; i++) {
+                        binary += String.fromCharCode(uint8Array[i]);
+                    }
+                    window.electronAPI.sendAudioChunk(btoa(binary));
+                } catch (err) {
+                    // Silent — audio processing is high-frequency
                 }
-                window.electronAPI.sendAudioChunk(btoa(binary));
             };
 
             sourceNode.connect(workletNode);
             workletNode.connect(audioContext.destination);
 
             window.electronAPI.onTranscriptionData((data) => {
-                if (data.type === 'Turn' && data.end_of_turn) {
-                    lastFinalTranscript = data.transcript;
-                } else if (data.message_type === 'FinalTranscript') {
-                    lastFinalTranscript = data.text;
+                try {
+                    if (data && data.type === 'Turn' && data.end_of_turn) {
+                        lastFinalTranscript = data.transcript || '';
+                    } else if (data && data.message_type === 'FinalTranscript') {
+                        lastFinalTranscript = data.text || '';
+                    }
+                } catch (err) {
+                    console.error('[ASSEMBLY] Transcription data handler error:', err);
                 }
             });
 
+            isStarting = false;
             return true;
         } catch (err) {
-            console.error('AssemblyService error:', err);
+            isStarting = false;
+            console.error('[ASSEMBLY] Start error:', err);
             this.stop();
             throw err;
         }
     },
 
     stop() {
-        if (workletNode) {
-            workletNode.disconnect();
-            workletNode = null;
-        }
-        if (sourceNode) {
-            sourceNode.disconnect();
-            sourceNode = null;
-        }
-        if (audioContext) {
-            audioContext.close();
-            audioContext = null;
-        }
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            stream = null;
-        }
-        window.electronAPI.stopTranscription();
+        isStarting = false;
+
+        try {
+            if (workletNode) {
+                workletNode.port.onmessage = null;
+                workletNode.disconnect();
+            }
+        } catch (_) {}
+        workletNode = null;
+
+        try {
+            if (sourceNode) sourceNode.disconnect();
+        } catch (_) {}
+        sourceNode = null;
+
+        try {
+            if (audioContext && audioContext.state !== 'closed') audioContext.close();
+        } catch (_) {}
+        audioContext = null;
+
+        try {
+            if (stream) stream.getTracks().forEach(track => track.stop());
+        } catch (_) {}
+        stream = null;
+
+        try {
+            window.electronAPI.stopTranscription();
+        } catch (_) {}
     },
 
     getLastFinalTranscript() {
