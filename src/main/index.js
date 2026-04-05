@@ -1,122 +1,104 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, session } = require('electron');
+const { app, session, BrowserWindow } = require('electron');
 const path = require('path');
+require('dotenv').config();
 
-let mainWindow;
-const width = 900;
-const height = 500;
+const { createMainWindow, getMainWindow } = require('./window-manager');
+const { registerShortcuts, unregisterShortcuts } = require('./shortcuts');
+const { registerIpcHandlers } = require('./ipc-handlers');
 
-function createWindow() {
-    mainWindow = new BrowserWindow({
-        width,
-        height,
-        transparent: true,
-        frame: false,
-        skipTaskbar: true,
-        alwaysOnTop: true,
-        hasShadow: false,
-        resizable: false,
-        webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-            preload: path.join(__dirname, 'preload.js')
-        }
-    });
+// ── Process-Level Crash Guards ──────────────────────────────────────────────
 
-    mainWindow.setAlwaysOnTop(true, 'screen-saver');
-    mainWindow.setContentProtection(true);
-    mainWindow.setOpacity(0.9);
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+process.on('uncaughtException', (error) => {
+    console.error('[FATAL] Uncaught Exception:', error);
+    // Don't exit — keep the app alive for non-critical exceptions
+});
 
-    globalShortcut.register('CommandOrControl+Shift+Q', () => {
-        app.quit();
-    });
+process.on('unhandledRejection', (reason) => {
+    console.error('[FATAL] Unhandled Promise Rejection:', reason);
+});
 
-    const moveAmount = 10;
-    globalShortcut.register('CommandOrControl+Up', () => {
-        const bounds = mainWindow.getBounds();
-        mainWindow.setBounds({ x: bounds.x, y: bounds.y - moveAmount, width: bounds.width, height: bounds.height });
-    });
-    globalShortcut.register('CommandOrControl+Down', () => {
-        const bounds = mainWindow.getBounds();
-        mainWindow.setBounds({ x: bounds.x, y: bounds.y + moveAmount, width: bounds.width, height: bounds.height });
-    });
-    globalShortcut.register('CommandOrControl+Left', () => {
-        const bounds = mainWindow.getBounds();
-        mainWindow.setBounds({ x: bounds.x - moveAmount, y: bounds.y, width: bounds.width, height: bounds.height });
-    });
-    globalShortcut.register('CommandOrControl+Right', () => {
-        const bounds = mainWindow.getBounds();
-        mainWindow.setBounds({ x: bounds.x + moveAmount, y: bounds.y, width: bounds.width, height: bounds.height });
-    });
+// ── Single Instance Lock ────────────────────────────────────────────────────
 
-    const resizeAmount = 50;
-    const handleZoomIn = () => {
-        const bounds = mainWindow.getBounds();
-        mainWindow.setBounds({ x: bounds.x, y: bounds.y, width: bounds.width + resizeAmount, height: bounds.height + resizeAmount });
-    };
-    const handleZoomOut = () => {
-        const bounds = mainWindow.getBounds();
-        mainWindow.setBounds({ x: bounds.x, y: bounds.y, width: bounds.width - resizeAmount, height: bounds.height - resizeAmount });
-    };
+const gotTheLock = app.requestSingleInstanceLock();
 
-    globalShortcut.register('CommandOrControl+=', handleZoomIn);
-    globalShortcut.register('CommandOrControl+numadd', handleZoomIn);
-    globalShortcut.register('CommandOrControl+-', handleZoomOut);
-    globalShortcut.register('CommandOrControl+numsub', handleZoomOut);
-
-    globalShortcut.register('CommandOrControl+Shift+I', () => {
-        if (mainWindow) mainWindow.webContents.send('focus-input');
-    });
-    
-    globalShortcut.register('CommandOrControl+Shift+Enter', () => {
-        if (mainWindow) mainWindow.webContents.send('trigger-search');
-    });
-
-    globalShortcut.register('CommandOrControl+Shift+Up', () => {
-        if (mainWindow) mainWindow.webContents.send('scroll', -1);
-    });
-    globalShortcut.register('CommandOrControl+Shift+Down', () => {
-        if (mainWindow) mainWindow.webContents.send('scroll', 1);
-    });
-
-    globalShortcut.register('CommandOrControl+Shift+C', () => {
-        if (mainWindow) mainWindow.webContents.send('copy-main');
-    });
-
-    globalShortcut.register('CommandOrControl+Shift+D', () => {
-        if (mainWindow) mainWindow.webContents.toggleDevTools();
-    });
-
-    ipcMain.handle('ollama-call', async (event, { url, options }) => {
+if (!gotTheLock) {
+    app.quit();
+} else {
+    app.on('second-instance', () => {
         try {
-            const response = await fetch(url, options);
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(`HTTP ${response.status}: ${text}`);
+            const mainWindow = getMainWindow();
+            if (mainWindow) {
+                if (mainWindow.isMinimized()) mainWindow.restore();
+                mainWindow.focus();
             }
-            return await response.json();
-        } catch (error) {
-            console.error('[Main Process] IPC Ollama error:', error.message);
-            throw error;
+        } catch (err) {
+            console.error('Second-instance handler error:', err);
         }
+    });
+
+    app.commandLine.appendSwitch('disable-gpu-cache');
+
+    app.whenReady().then(async () => {
+        try {
+            registerIpcHandlers();
+            registerShortcuts();
+
+            session.defaultSession.setProxy({
+                proxyRules: 'direct://',
+                proxyBypassRules: '127.0.0.1,localhost'
+            });
+
+            const { desktopCapturer } = require('electron');
+            session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+                try {
+                    const sources = await desktopCapturer.getSources({ types: ['screen'] });
+                    if (sources.length > 0) {
+                        callback({ video: sources[0], audio: 'loopback' });
+                    } else {
+                        callback({});
+                    }
+                } catch (err) {
+                    console.error('Display media handler error:', err);
+                    callback({});
+                }
+            });
+
+            const mainWindow = createMainWindow(path.join(__dirname, 'preload.js'));
+
+            // ── Renderer Crash Recovery ─────────────────────────────────
+            mainWindow.webContents.on('render-process-gone', (event, details) => {
+                console.error('[CRASH] Renderer process gone:', details.reason, details.exitCode);
+                try {
+                    if (!mainWindow.isDestroyed()) mainWindow.close();
+                } catch (_) { /* window already destroyed */ }
+                createMainWindow(path.join(__dirname, 'preload.js'));
+            });
+
+            mainWindow.on('unresponsive', () => {
+                console.warn('[WARN] Main window became unresponsive');
+            });
+
+            mainWindow.on('responsive', () => {
+                console.info('[INFO] Main window is responsive again');
+            });
+
+            app.on('activate', function () {
+                if (BrowserWindow.getAllWindows().length === 0) createMainWindow(path.join(__dirname, 'preload.js'));
+            });
+        } catch (err) {
+            console.error('[FATAL] App initialization failed:', err);
+        }
+    }).catch((err) => {
+        console.error('[FATAL] app.whenReady() rejected:', err);
     });
 }
 
-app.whenReady().then(() => {
-    session.defaultSession.setProxy({
-        proxyRules: 'direct://',
-        proxyBypassRules: '127.0.0.1,localhost'
-    });
-
-    createWindow();
-
-    app.on('activate', function () {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
-});
-
 app.on('will-quit', () => {
-    globalShortcut.unregisterAll();
+    try {
+        unregisterShortcuts();
+    } catch (err) {
+        console.error('Shortcut cleanup error:', err);
+    }
 });
 
 app.on('window-all-closed', function () {

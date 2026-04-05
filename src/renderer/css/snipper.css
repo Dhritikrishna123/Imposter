@@ -1,0 +1,36 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    cursor: default; /* STEALTH: Looks like you are just moving the normal arrow cursor */
+    user-select: none;
+    -webkit-user-drag: none;
+    background-color: transparent;
+}
+
+body {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 10;
+}
+
+.selection-box {
+    position: absolute;
+    border: 2px solid #10a37f;
+    background-color: rgba(16, 163, 127, 0.1);
+    z-index: 20;
+    pointer-events: none;
+}

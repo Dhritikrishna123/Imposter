@@ -2,9 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src https://fonts.gstatic.com; connect-src http://127.0.0.1:11434;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src https://fonts.gstatic.com; connect-src http://127.0.0.1:11434 https://openrouter.ai https://streaming.assemblyai.com wss://streaming.assemblyai.com; media-src 'self' mediastream:;">
     <title>Imposter</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     
     <link rel="stylesheet" href="css/base.css">
@@ -13,6 +15,7 @@
     <link rel="stylesheet" href="css/components/input.css">
     <link rel="stylesheet" href="css/components/modal.css">
     <link rel="stylesheet" href="css/components/onboarding.css">
+    <link rel="stylesheet" href="css/components/models.css">
     
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -26,17 +29,31 @@
                     <option value="">Loading models...</option>
                 </select>
             </div>
-            <div class="status-indicator">
-                <span id="connectionStatus" class="dot offline"></span>
-                <span id="statusText">Checking...</span>
-                <button id="settings-btn" class="icon-button" title="Settings">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                </button>
+            <div class="header-actions">
+                <div class="status-indicator">
+                    <span id="connectionStatus" class="dot offline"></span>
+                    <span id="statusText">Checking...</span>
+                    <button id="clear-chat-btn" class="icon-button" title="New Chat" style="opacity: 0.5;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    </button>
+                    <button id="settings-link" class="icon-button" title="Settings">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    </button>
+                </div>
+                <div id="window-controls" class="window-controls" style="display: none;">
+                    <button id="win-min-btn" class="win-btn win-min" title="Minimize">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                    <button id="win-close-btn" class="win-btn win-close" title="Close">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
             </div>
+
         </header>
 
         <main class="chat-stage" id="chat-stage">
-            <div id="result-content" class="markdown-body">
+            <div id="result-content" class="chat-thread">
                 <div class="empty-state">
                     <img src="../../public/logo.png" class="brand-logo" alt="Logo">
                     <h2>Imposter</h2>
@@ -87,28 +104,219 @@
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg>
                             AI Engine
                         </button>
+                        <button class="tab-btn" data-tab="models">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7L12 12L22 7L12 2Z"></path><path d="M2 17L12 22L22 17"></path><path d="M2 12L12 17L22 12"></path></svg>
+                            Models
+                        </button>
+                        <button class="tab-btn" data-tab="app-config">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                            App Settings
+                        </button>
+                        <button class="tab-btn" data-tab="voice-ai">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                            Voice & AI
+                        </button>
+                        <button class="tab-btn" data-tab="shortcuts">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            Shortcuts
+                        </button>
+                        <button class="tab-btn" data-tab="about">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                            About
+                        </button>
                     </div>
                 </div>
-                <div class="settings-content">
-                    <div id="tab-profile" class="tab-pane active">
-                        <h2>Personal Identity</h2>
-                        <div class="field-group">
-                            <label>Display Name</label>
-                            <input type="text" id="settings-name">
-                            <p class="field-hint">Used for home greetings.</p>
+                <div class="settings-main">
+                    <div class="settings-content">
+                        <div id="tab-profile" class="tab-pane active">
+                            <h2>Personal Identity</h2>
+                            <div class="field-group">
+                                <label>Display Name</label>
+                                <input type="text" id="settings-name">
+                                <p class="field-hint">Used for home greetings.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div id="tab-ai-config" class="tab-pane">
-                        <h2>AI Intelligence</h2>
-                        <div class="field-group">
-                            <label>Systematic Override</label>
-                            <textarea id="settings-prompt" rows="5"></textarea>
-                            <p class="field-hint">Global instructions for every query.</p>
+                        <div id="tab-ai-config" class="tab-pane">
+                            <h2>AI Intelligence</h2>
+
+                            <div class="field-group">
+                                <label>Systematic Override</label>
+                                <textarea id="settings-prompt" rows="3"></textarea>
+                                <p class="field-hint">Global instructions injected into every query.</p>
+                            </div>
+
+                            <div class="field-group" style="margin-top: 20px;">
+                                <label>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 6px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                                    Interview Persona
+                                </label>
+                                <select id="settings-persona" style="width: 100%; padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 13px;">
+                                    <optgroup label="Engineering">
+                                        <option value="engineer">Software Engineer (General)</option>
+                                        <option value="frontend">Frontend Engineer</option>
+                                        <option value="backend">Backend Engineer</option>
+                                        <option value="fullstack">Full Stack Engineer</option>
+                                        <option value="mobile">Mobile App Developer</option>
+                                        <option value="devops">DevOps / Cloud Engineer</option>
+                                        <option value="ml">ML / AI Engineer</option>
+                                        <option value="qa">QA / Test Engineer</option>
+                                    </optgroup>
+                                    <optgroup label="Leadership & Strategy">
+                                        <option value="architect">System Architect</option>
+                                        <option value="manager">Engineering Manager</option>
+                                        <option value="analyst">Data / Business Analyst</option>
+                                        <option value="product">Product Manager</option>
+                                    </optgroup>
+                                    <optgroup label="Other">
+                                        <option value="default">None (Raw Prompt Only)</option>
+                                    </optgroup>
+                                </select>
+                                <p class="field-hint">Adjusts the AI's tone and focus area automatically.</p>
+                            </div>
+
+                            <div class="field-group" style="margin-top: 20px;">
+                                <label>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                                    Resume / Experience
+                                </label>
+                                <textarea id="settings-resume" rows="6" placeholder="Paste your resume, key projects, or career highlights here. The AI will reference this when answering behavioral and experience-based questions." style="font-size: 12.5px;"></textarea>
+                                <p class="field-hint">The AI will cite your real experience instead of giving generic answers.</p>
+                            </div>
+
+                            <div class="field-group" style="margin-top: 20px;">
+                                <label>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 6px;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                                    Target Job Description
+                                </label>
+                                <textarea id="settings-jd" rows="6" placeholder="Paste the job description you're interviewing for. The AI will prioritize technologies and skills mentioned here." style="font-size: 12.5px;"></textarea>
+                                <p class="field-hint">AI will tailor responses to highlight JD-relevant skills.</p>
+                            </div>
+                        </div>
+                        <div id="tab-app-config" class="tab-pane">
+                            <h2>Application Mode</h2>
+                            <div class="field-group">
+                                <label>Visibility & Tracking</label>
+                                <select id="settings-app-mode">
+                                    <option value="stealth">Stealth Mode (Hidden / Always On Top)</option>
+                                    <option value="normal">Normal Mode (Standard Window)</option>
+                                </select>
+                                <p class="field-hint"><b>Stealth Mode</b> removes the app from the taskbar and pins it over other apps. <br><b>Normal Mode</b> acts like a regular desktop app with a taskbar icon and window controls.</p>
+                            </div>
+                        </div>
+                        <div id="tab-models" class="tab-pane">
+                            <h2>Model Management</h2>
+                            <div class="models-container">
+                                <div id="custom-models-list" class="models-list">
+                                    <!-- Populated dynamically -->
+                                </div>
+                                <div class="add-model-form">
+                                    <h3>Add New Model</h3>
+                                    <div class="field-group">
+                                        <label>Provider</label>
+                                        <select id="new-model-provider">
+                                            <option value="ollama">Ollama (Custom URL)</option>
+                                            <option value="openrouter">OpenRouter</option>
+                                        </select>
+                                    </div>
+                                    <div class="field-group">
+                                        <label>Display Label</label>
+                                        <input type="text" id="new-model-label" placeholder="e.g. My Qwen Assistant">
+                                        <p class="field-hint">This name will appear in the model selection dropdown.</p>
+                                    </div>
+                                    <div class="field-group">
+                                        <label id="model-id-label">Model ID</label>
+                                        <input type="text" id="new-model-id" placeholder="e.g. qwen/qwen3.6-plus:free">
+                                        <p class="field-hint">The exact model identifier from the provider (e.g. OpenRouter slug).</p>
+                                    </div>
+                                    <div class="field-group" id="api-key-group" style="display:none;">
+                                        <label>API Key</label>
+                                        <input type="password" id="new-model-key" placeholder="sk-or-v1-...">
+                                        <p class="field-hint">Your private OpenRouter token. Stored locally.</p>
+                                    </div>
+                                    <div class="field-group" id="base-url-group">
+                                        <label>Base URL</label>
+                                        <input type="text" id="new-model-url" value="http://127.0.0.1:11434">
+                                        <p class="field-hint">The local address for your Ollama instance.</p>
+                                    </div>
+                                    <button id="add-model-btn" class="secondary-btn">Add to System</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="tab-voice-ai" class="tab-pane">
+                            <h2>Voice & AI Transcription</h2>
+                            <p>Configure real-time transcription powered by AssemblyAI.</p>
+                            <div class="field-group">
+                                <label>AssemblyAI API Key</label>
+                                <div class="input-with-action">
+                                    <input type="password" id="settings-assembly-key" placeholder="Enter your API key">
+                                    <button id="test-voice-btn" class="secondary-btn">Test Connection</button>
+                                </div>
+                                <p class="field-hint" id="voice-test-status">Your key remains private and local.</p>
+                            </div>
+                            <div class="feature-info">
+                                <h3>Controls</h3>
+                                <ul>
+                                    <li><code>Ctrl+Shift+B</code>: Toggle Recording Window</li>
+                                    <li><code>F10</code>: Fetch Last Transcription & Ask AI</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div id="tab-shortcuts" class="tab-pane">
+                            <h2>Shortcuts Guide</h2>
+                            <p>Here is a list of all global keyboard shortcuts available in Imposter:</p>
+                            <div class="feature-info">
+                                <ul>
+                                    <li><code>Ctrl + Shift + Enter</code>: Trigger Text Search</li>
+                                    <li><code>Ctrl + Shift + B</code>: Toggle Voice Recording Window </li>
+                                    <li><code>F10</code>: Fetch Last Voice Transcription & Ask AI</li>
+                                    <li><code>Ctrl + Shift + I</code>: Focus input box</li>
+                                    <li><code>Ctrl + Shift + S</code>: Screen Snip / OCR</li>
+                                    <li><code>Ctrl + Shift + Q</code>: Quit Application</li>
+                                    <li><code>Ctrl + Up/Down/Left/Right</code>: Move the window</li>
+                                    <li><code>Ctrl + =</code> / <code>-</code>: Resize window</li>
+                                    <li><code>Ctrl + Shift + D</code>: Toggle Developer Tools</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div id="tab-about" class="tab-pane">
+                            <div style="text-align: center; margin-bottom: 2rem; padding-top: 1rem;">
+                                <img src="../../public/logo.png" class="brand-logo" alt="Logo" style="width: 80px; height: 80px; margin: 0 auto 1.5rem auto; display: block; border-radius: 20px; box-shadow: 0 8px 24px rgba(16, 163, 127, 0.25);">
+                                <h2 style="margin: 0; font-size: 1.8rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.03em;">Imposter</h2>
+                                <p style="color: var(--accent-color); margin-top: 0.5rem; font-weight: 600; font-size: 0.95rem; letter-spacing: 0.05em; text-transform: uppercase;">Beating a Broken System</p>
+                            </div>
+                            <div class="feature-info" style="margin-bottom: 1.5rem; background: rgba(255, 255, 255, 0.03); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 1rem;">
+                                <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-primary);">
+                                    <div style="background: rgba(16, 163, 127, 0.1); padding: 8px; border-radius: 8px; display: flex; color: var(--accent-color);">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Author</div>
+                                        <div style="font-weight: 500; font-size: 1rem;">Puskar-Roy</div>
+                                    </div>
+                                </div>
+                                <div style="height: 1px; background: var(--border-color); width: 100%;"></div>
+                                <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-primary);">
+                                    <div style="background: rgba(16, 163, 127, 0.1); padding: 8px; border-radius: 8px; display: flex; color: var(--accent-color);">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Source Code</div>
+                                        <a href="https://github.com/Puskar-Roy/Imposter" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 500; font-size: 1rem; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--accent-hover)'" onmouseout="this.style.color='var(--accent-color)'">github.com/Puskar-Roy/Imposter</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="background: rgba(255, 77, 77, 0.08); border: 1px solid rgba(255, 77, 77, 0.2); border-radius: 12px; padding: 1.25rem; color: #ff6b6b; display: flex; align-items: flex-start; gap: 1rem;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 0.1rem;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 0.25rem; letter-spacing: 0.02em;">Educational Research Only</div>
+                                    <div style="font-size: 0.9rem; line-height: 1.5; color: rgba(255, 107, 107, 0.9);">This application is developed strictly for educational and conceptual research. Use it responsibly and ensure you comply with all applicable terms of service and software licenses.</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="settings-footer">
                         <button id="close-settings" class="secondary-btn">Cancel</button>
-                        <button id="save-settings" class="primary-btn">Save Changes</button>
+                        <button id="save-settings" class="primary-btn">Save & Close</button>
                     </div>
                 </div>
             </div>

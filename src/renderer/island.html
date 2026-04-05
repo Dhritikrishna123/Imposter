@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imposter Island</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --island-bg: rgba(18, 18, 18, 0.95);
+            --accent-mic: #10a37f;
+            --accent-ai: #3498db;
+            --text-main: #ececec;
+            --text-secondary: rgba(236, 236, 236, 0.6);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: transparent;
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .island-container {
+            background: var(--island-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            min-width: 48px;
+            max-width: 90vw;
+            height: 40px;
+            transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            -webkit-app-region: drag;
+            user-select: none;
+        }
+
+        .icon-container {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-app-region: no-drag;
+        }
+
+        .icon {
+            width: 100%;
+            height: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .mic-active { color: var(--accent-mic); animation: pulse 2s infinite; }
+        .ai-active { color: var(--accent-ai); animation: pulse-blue 1.5s infinite; }
+
+        #subtitle {
+            font-size: 0.95rem;
+            font-weight: 400;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            opacity: 0;
+            transform: translateX(10px);
+            transition: all 0.4s ease;
+            -webkit-app-region: no-drag;
+        }
+
+        .active #subtitle {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .partial { color: var(--text-secondary); }
+        .final { color: var(--accent-mic); font-weight: 600; }
+        .ai-result { color: var(--accent-ai); font-weight: 600; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.7; }
+        }
+
+        @keyframes pulse-blue {
+            0% { transform: scale(1); filter: drop-shadow(0 0 2px var(--accent-ai)); }
+            50% { transform: scale(1.2); filter: drop-shadow(0 0 8px var(--accent-ai)); }
+            100% { transform: scale(1); filter: drop-shadow(0 0 2px var(--accent-ai)); }
+        }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="island-container" id="island">
+        <div class="icon-container">
+            <!-- Mic Icon -->
+            <svg id="mic-icon" class="icon mic-active" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+            <!-- Brain Icon (AI) -->
+            <svg id="ai-icon" class="icon ai-active hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9.5 2A5 5 0 0 1 12 7.7a5.1 5.1 0 0 1 2.5-5.7 5 5 0 1 1 5.4 8.7 5 5 0 0 1-8.9 4.3 5 5 0 0 1-8.9-4.3 5 5 0 0 1 5.4-8.7Z"></path>
+                <path d="M12 13v9"></path>
+                <path d="m9 16 3 3 3-3"></path>
+            </svg>
+        </div>
+        <div id="subtitle" class="partial">Listening...</div>
+    </div>
+
+    <script>
+        const island = document.getElementById('island');
+        const subtitleEl = document.getElementById('subtitle');
+        const micIcon = document.getElementById('mic-icon');
+        const aiIcon = document.getElementById('ai-icon');
+        let clearTimer = null;
+
+        function showAiIcon(show) {
+            if (show) {
+                micIcon.classList.add('hidden');
+                aiIcon.classList.remove('hidden');
+            } else {
+                micIcon.classList.remove('hidden');
+                aiIcon.classList.add('hidden');
+            }
+        }
+
+        window.electronAPI.onTranscriptionData((data) => {
+            if (clearTimer) clearTimeout(clearTimer);
+            showAiIcon(false);
+            island.classList.add('active');
+            
+            if (data.type === 'Turn') {
+                const text = data.transcript || '';
+                if (!text) return;
+                subtitleEl.textContent = text;
+                subtitleEl.className = data.end_of_turn ? 'final' : 'partial';
+                
+                if (data.end_of_turn) {
+                    clearTimer = setTimeout(() => {
+                        subtitleEl.textContent = '';
+                        island.classList.remove('active');
+                    }, 5000);
+                }
+            }
+        });
+
+        window.electronAPI.onAiResponse((text) => {
+            if (clearTimer) clearTimeout(clearTimer);
+            
+            showAiIcon(true);
+            island.classList.add('active');
+            
+            if (text === 'thinking...') {
+                subtitleEl.textContent = 'Thinking...';
+                subtitleEl.className = 'ai-result';
+            } else {
+                subtitleEl.textContent = text;
+                subtitleEl.className = 'ai-result';
+                
+                clearTimer = setTimeout(() => {
+                    subtitleEl.textContent = '';
+                    showAiIcon(false);
+                    island.classList.remove('active');
+                }, 8000); // AI answers stay longer
+            }
+        });
+    </script>
+</body>
+</html>

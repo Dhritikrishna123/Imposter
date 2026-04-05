@@ -13,8 +13,11 @@
     "dist": "electron-builder"
   },
   "dependencies": {
+    "dotenv": "^17.4.0",
     "highlight.js": "^11.9.0",
-    "marked": "^12.0.0"
+    "marked": "^12.0.0",
+    "tesseract.js": "^7.0.0",
+    "ws": "^8.20.0"
   },
   "devDependencies": {
     "electron": "^30.0.0",
