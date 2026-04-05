@@ -62,7 +62,7 @@ let emptyStateHtml = '';
 async function init() {
     setupMarkdown();
     loadAppConfig();
-    
+
     emptyStateHtml = resultContent.innerHTML;
     customModels = Config.getSavedModels();
     applyAppMode(userConfig.appMode || 'stealth');
@@ -96,7 +96,7 @@ function loadAppConfig() {
 async function loadModels() {
     statusDot.className = 'dot offline';
     statusText.textContent = 'Scanning...';
-    
+
     const ollamaModels = await API.fetchModels();
     modelSelect.innerHTML = '';
 
@@ -210,7 +210,7 @@ function setupEventListeners() {
         const prompt = settingsPromptInput.value.trim();
         const appMode = settingsAppMode.value;
         const assemblyKey = settingsAssemblyKey.value.trim();
-        
+
         if (name) {
             userConfig = Config.saveConfig(name, prompt, appMode, assemblyKey);
             UI.updateGreeting(document.getElementById('greeting-container'), userConfig.name);
@@ -298,10 +298,10 @@ function setupEventListeners() {
                     statusText.textContent = 'Missing API Key';
                     return;
                 }
-                
+
                 statusText.textContent = 'Connecting...';
                 const started = await AssemblyService.start(userConfig.assemblyKey);
-                
+
                 if (started) {
                     window.electronAPI.openIslandWindow();
                     isRecording = true;
@@ -338,31 +338,34 @@ function setupEventListeners() {
     }
 }
 
-function renderChatHistory() {
-    resultContent.innerHTML = '';
-    conversationHistory.forEach((msg) => {
-        if (msg.role === 'system') return;
-        
-        const bubble = document.createElement('div');
-        if (msg.role === 'user') {
-            bubble.className = 'chat-message-user';
-            bubble.textContent = msg.content;
+function appendChatMessage(msg) {
+    if (msg.role === 'system') return null;
+
+    if (conversationHistory.length === 1 && conversationHistory[0] === msg) {
+        resultContent.innerHTML = '';
+    }
+
+    const bubble = document.createElement('div');
+    if (msg.role === 'user') {
+        bubble.className = 'chat-message-user';
+        bubble.textContent = msg.content;
+    } else {
+        bubble.className = 'chat-message-ai markdown-body';
+        let htmlContent = parseMarkdown(msg.content || '');
+        if (msg.reasoningHtml) htmlContent = msg.reasoningHtml + htmlContent;
+
+        if (msg.isError) {
+            UI.showError(bubble, { message: msg.content });
         } else {
-            bubble.className = 'chat-message-ai markdown-body';
-            let htmlContent = parseMarkdown(msg.content);
-            if (msg.reasoningHtml) htmlContent = msg.reasoningHtml + htmlContent;
-            
-            if (msg.isError) {
-                UI.showError(bubble, { message: msg.content });
-            } else {
-                bubble.innerHTML = htmlContent;
-            }
+            bubble.innerHTML = htmlContent;
         }
-        resultContent.appendChild(bubble);
-    });
+    }
+    resultContent.appendChild(bubble);
+    return bubble;
 }
 
 async function performSearch(isF10 = false) {
+    if (searchBtn.disabled) return;
     const text = promptInput.value.trim();
     const modelSelection = modelSelect.value;
     if (!text || !modelSelection) return;
@@ -373,19 +376,22 @@ async function performSearch(isF10 = false) {
     currentRawResponse = '';
     searchBtn.disabled = true;
 
-    if (conversationHistory.length === 0 && userConfig.systemPrompt) {
-        if (provider === 'ollama') {
+    if (conversationHistory.length === 0) {
+        resultContent.innerHTML = '';
+        if (userConfig.systemPrompt && provider === 'ollama') {
             conversationHistory.push({ role: 'system', content: userConfig.systemPrompt });
         }
     }
 
-    conversationHistory.push({ role: 'user', content: text });
-    renderChatHistory();
+    const userMsg = { role: 'user', content: text };
+    conversationHistory.push(userMsg);
+    appendChatMessage(userMsg);
 
     const loadingBubble = document.createElement('div');
     loadingBubble.className = 'chat-message-ai';
     UI.showLoading(loadingBubble);
     resultContent.appendChild(loadingBubble);
+    setTimeout(() => { chatStage.scrollTop = chatStage.scrollHeight; }, 10);
     chatStage.scrollTop = chatStage.scrollHeight;
 
     try {
@@ -393,10 +399,10 @@ async function performSearch(isF10 = false) {
         let reasoningHtml = '';
 
         if (provider === 'ollama') {
-            responseData = await API.generateOllamaResponse(baseUrl, { 
-                model: modelId, 
-                messages: conversationHistory, 
-                stream: false 
+            responseData = await API.generateOllamaResponse(baseUrl, {
+                model: modelId,
+                messages: conversationHistory,
+                stream: false
             });
             currentRawResponse = responseData.message?.content || responseData.response || '';
         } else if (provider === 'openrouter') {
@@ -413,25 +419,34 @@ async function performSearch(isF10 = false) {
                 if (msg.reasoning_details) reasoningHtml = UI.renderReasoningTrace(msg.reasoning_details);
             }
         }
-        
-        conversationHistory.push({ 
-            role: 'assistant', 
-            content: currentRawResponse, 
-            reasoningHtml 
-        });
+
+        const aiMsg = {
+            role: 'assistant',
+            content: currentRawResponse,
+            reasoningHtml
+        };
+        conversationHistory.push(aiMsg);
+
+        // Replace loading UI with actual content block logic instead of recreating everything
+        resultContent.removeChild(loadingBubble);
+        appendChatMessage(aiMsg);
+
         if (isF10 && currentRawResponse) {
             window.electronAPI.sendAiResponseToIsland(currentRawResponse);
         }
 
     } catch (err) {
-        conversationHistory.push({
+        const errorMsg = {
             role: 'assistant',
             content: err.message,
             isError: true
-        });
+        };
+        conversationHistory.push(errorMsg);
+        resultContent.removeChild(loadingBubble);
+        appendChatMessage(errorMsg);
+
         if (isF10) window.electronAPI.sendAiResponseToIsland('Error: Could not reach AI');
     } finally {
-        renderChatHistory();
         searchBtn.disabled = false;
         setTimeout(() => { chatStage.scrollTo({ top: chatStage.scrollHeight, behavior: 'smooth' }); }, 50);
     }
