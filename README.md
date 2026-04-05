@@ -3,6 +3,8 @@
 <div align="center">
   <img src="public/logo.png" width="128" alt="Imposter Logo">
   <h3>A seamless, unobtrusive AI interface for your desktop environment.</h3>
+  <br>
+  <img src="public/imposter.png" alt="Imposter Application Banner" width="100%">
 </div>
 
 ---
