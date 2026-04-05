@@ -23,20 +23,15 @@ if (!gotTheLock) {
     app.commandLine.appendSwitch('disable-gpu-cache');
 
     app.whenReady().then(async () => {
-        // 1. Initialize IPC FIRST
         registerIpcHandlers();
         
-        // 2. Initialize Shortcuts
         registerShortcuts();
 
-        // 3. Optimize networking
         session.defaultSession.setProxy({
             proxyRules: 'direct://',
             proxyBypassRules: '127.0.0.1,localhost'
         });
 
-        // 4. Auto-approve display media requests (for audio capture)
-        //    This replaces the deprecated chromeMediaSource: 'desktop' API
         const { desktopCapturer } = require('electron');
         session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
             try {
@@ -52,7 +47,6 @@ if (!gotTheLock) {
             }
         });
 
-        // 5. Create Window LAST
         createMainWindow(path.join(__dirname, 'preload.js'));
 
         app.on('activate', function () {

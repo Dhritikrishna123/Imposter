@@ -5,7 +5,6 @@ export async function fetchModels() {
             const data = await window.electronAPI.ollamaCall(url, { method: 'GET' });
             if (data?.models?.length > 0) return data.models;
         } catch (e) {
-            console.warn(`[API] Failed to fetch from ${url}`);
         }
     }
     return null;

@@ -273,7 +273,7 @@ function setupEventListeners() {
         if (lastTranscript) {
             window.electronAPI.sendAiResponseToIsland('thinking...');
             promptInput.value = lastTranscript;
-            performSearch(true); // passed true for isF10
+            performSearch(true);
         }
     });
 
@@ -301,7 +301,6 @@ function setupEventListeners() {
                     statusText.textContent = 'Failed to Start';
                 }
             } catch (err) {
-                console.error('Toggle error:', err);
                 statusText.textContent = 'Mic Error';
             }
         }
@@ -358,8 +357,6 @@ async function performSearch(isF10 = false) {
         }
         
         resultContent.innerHTML = reasoningHtml + parseMarkdown(currentRawResponse);
-        
-        // If this search was triggered by F10, send it to the Island UI
         if (isF10 && currentRawResponse) {
             window.electronAPI.sendAiResponseToIsland(currentRawResponse);
         }
