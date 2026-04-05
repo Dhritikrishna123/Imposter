@@ -131,7 +131,7 @@ function renderCustomModelsList() {
                 <strong>${m.name}</strong>
                 <span>${m.provider} - ${m.modelId}</span>
             </div>
-            <button class="delete-model-btn" data-index="${index}">Delete</button>
+            <button class="secondary-btn delete-model-btn" data-index="${index}" style="padding: 6px 12px; font-size: 12px; color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3);">Remove</button>
         `;
         customModelsList.appendChild(item);
     });
@@ -251,6 +251,7 @@ function setupEventListeners() {
             document.querySelectorAll('.tab-pane').forEach(p => {
                 p.classList.toggle('active', p.id === `tab-${tabId}`);
             });
+            saveSettingsBtn.style.display = (tabId === 'shortcuts' || tabId === 'about') ? 'none' : 'block';
         });
     });
 

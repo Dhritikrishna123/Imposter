@@ -79,6 +79,7 @@
     gap: 12px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     letter-spacing: 0.02em;
+    white-space: nowrap;
 }
 
 .tab-btn svg { opacity: 0.6; transition: opacity 0.2s; }
