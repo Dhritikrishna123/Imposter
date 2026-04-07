@@ -437,7 +437,8 @@ function setupEventListeners() {
         
         if (verifyGeminiBtn) verifyGeminiBtn.disabled = true;
         if (geminiFetchStatus) {
-            geminiFetchStatus.textContent = 'Listing...';
+            geminiFetchStatus.textContent = 'Listing Models...';
+            geminiFetchStatus.classList.add('visible', 'loading');
             geminiFetchStatus.style.color = 'var(--accent-color)';
         }
         
@@ -445,7 +446,10 @@ function setupEventListeners() {
             // 1. Get full list
             const allModels = await API.fetchGeminiModels(key);
             if (!allModels || allModels.length === 0) {
-                if (geminiFetchStatus) geminiFetchStatus.textContent = 'No models found';
+                if (geminiFetchStatus) {
+                    geminiFetchStatus.textContent = 'No models found';
+                    geminiFetchStatus.classList.remove('loading');
+                }
                 return;
             }
 
@@ -460,19 +464,16 @@ function setupEventListeners() {
             for (const m of candidateModels) {
                 checkedCount++;
                 if (geminiFetchStatus) {
-                    geminiFetchStatus.textContent = `Testing ${checkedCount}/${candidateModels.length}...`;
+                    geminiFetchStatus.textContent = `Verifying ${checkedCount}/${candidateModels.length}...`;
                 }
 
-                // Optimization: Always assume gemini-1.5-flash is working if user wants speed
-                // but let's test it anyway for true reliability
                 const isWorking = await API.testGeminiModel(key, m.name);
                 if (isWorking) {
                     workingModels.push(m);
-                    // Update dropdown incrementally so user doesn't wait for the whole loop
+                    // Update dropdown incrementally
                     const opt = document.createElement('option');
                     opt.value = m.name.replace('models/', '');
                     opt.textContent = m.displayName;
-                    // If it was the first one, clear the "Searching..." message
                     if (workingModels.length === 1) newGeminiModelSelect.innerHTML = '';
                     newGeminiModelSelect.appendChild(opt);
                 }
@@ -483,18 +484,25 @@ function setupEventListeners() {
                 if (geminiFetchStatus) {
                     geminiFetchStatus.textContent = 'Verification Failed';
                     geminiFetchStatus.style.color = '#ff4d4d';
+                    geminiFetchStatus.classList.remove('loading');
                 }
             } else {
                 if (geminiFetchStatus) {
-                    geminiFetchStatus.textContent = `✅ ${workingModels.length} Models Verified`;
+                    geminiFetchStatus.textContent = `${workingModels.length} Models Verified`;
                     geminiFetchStatus.style.color = '#10a37f';
+                    geminiFetchStatus.classList.remove('loading');
                 }
+                // Smooth focus after a short delay
+                setTimeout(() => {
+                    if (newGeminiModelSelect) newGeminiModelSelect.focus();
+                }, 400);
             }
         } catch (err) {
             console.error('[APP/GEMINI] Verification error:', err);
             if (geminiFetchStatus) {
                 geminiFetchStatus.textContent = 'Error during verification';
                 geminiFetchStatus.style.color = '#ff4d4d';
+                geminiFetchStatus.classList.remove('loading');
             }
         } finally {
             if (verifyGeminiBtn) verifyGeminiBtn.disabled = false;

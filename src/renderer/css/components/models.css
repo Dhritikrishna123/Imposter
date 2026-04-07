@@ -239,6 +239,51 @@
     gap: 16px;
 }
 
+/* Polished Field Layouts */
+.field-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.input-action-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.status-indicator {
+    font-size: 11px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(2px);
+}
+
+.status-indicator.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.status-indicator.loading {
+    animation: pulse-op 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-op {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+}
+
+.verify-btn {
+    padding: 0 16px;
+    height: 42px;
+    font-size: 11px;
+    white-space: nowrap;
+    border-radius: 12px;
+}
+
 .form-group.full-width {
     grid-column: span 2;
 }
