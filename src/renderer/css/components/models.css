@@ -117,6 +117,12 @@
     border: 1px solid rgba(16, 163, 127, 0.2);
 }
 
+.badge-gemini {
+    background: rgba(142, 117, 255, 0.1);
+    color: #8E75FF;
+    border: 1px solid rgba(142, 117, 255, 0.2);
+}
+
 .model-id-tag {
     font-size: 11px;
     color: var(--text-secondary);

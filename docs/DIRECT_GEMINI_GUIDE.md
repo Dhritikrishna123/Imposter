@@ -9,7 +9,7 @@ The base URL for Gemini 1.5/2.0 is:
 > [!IMPORTANT]
 > **Model Naming Structure**: 
 > - In the **URL path**, the `models/` prefix is **required**.
-> - In your **Variable**, you only need the ID (e.g., `gemini-flash-latest`).
+> - In your **Variable**, you only need the ID (e.g., `gemini-1.5-flash`).
 > - If you use the **Official SDK**, you don't need the `models/` prefix at all.
 
 ## 2. Minimal Fetch Example (JavaScript)
@@ -102,6 +102,46 @@ async function listModels() {
     }
   } catch (error) {
     console.error("Network Error:", error.message);
+  }
+}
+```
+
+---
+
+## 6. Finding Ready-to-Use Models (Testing & Filtering)
+Some models may be listed but not yet active for your specific key (e.g., experimental versions). Use this script to filter and find only the ones that are **confirmed to respond**.
+
+```javascript
+async function findWorkingModels() {
+  const API_KEY = 'YOUR_GOOGLE_AI_STUDIO_KEY';
+  
+  // 1. Get the list of all models
+  const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`;
+  const listData = await (await fetch(listUrl)).json();
+
+  console.log("🔍 Checking which models are actually responding...");
+
+  for (const model of listData.models) {
+    // Only test models that support content generation
+    if (model.supportedGenerationMethods.includes('generateContent')) {
+      const testUrl = `https://generativelanguage.googleapis.com/v1beta/${model.name}:generateContent?key=${API_KEY}`;
+      
+      try {
+        const res = await fetch(testUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: "hi" }] }] })
+        });
+
+        if (res.ok) {
+          console.log(`✅ WORKING: ${model.name} (${model.displayName})`);
+        } else {
+          console.log(`❌ FAILED:  ${model.name} (Status: ${res.status})`);
+        }
+      } catch (err) {
+        console.log(`❌ ERROR:   ${model.name} (${err.message})`);
+      }
+    }
   }
 }
 ```

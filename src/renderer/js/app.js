@@ -61,7 +61,13 @@ const newModelKey = $('new-model-key');
 const newModelUrl = $('new-model-url');
 const addModelBtn = $('add-model-btn');
 const apiKeyGroup = $('api-key-group');
+const apiKeyLabel = $('api-key-label');
 const baseUrlGroup = $('base-url-group');
+const modelIdGroup = $('model-id-group');
+const geminiModelGroup = $('gemini-model-group');
+const newGeminiModelSelect = $('new-gemini-model-select');
+const verifyGeminiBtn = $('verify-gemini-btn');
+const geminiFetchStatus = $('gemini-fetch-status');
 
 // Buttons
 const saveConfigBtn = $('save-config-btn');
@@ -209,13 +215,26 @@ function renderCustomModelsList() {
             item.className = `model-item ${isEditing ? 'editing' : ''}`;
 
             const isOllama = m.provider === 'ollama';
-            const providerClass = isOllama ? 'badge-ollama' : 'badge-openrouter';
-            const providerLabel = isOllama ? 'Local' : 'Cloud';
+            const isGemini = m.provider === 'gemini';
+            let providerClass = 'badge-openrouter';
+            let providerLabel = 'Cloud';
+            
+            if (isOllama) {
+                providerClass = 'badge-ollama';
+                providerLabel = 'Local';
+            } else if (isGemini) {
+                providerClass = 'badge-gemini';
+                providerLabel = 'Gemini';
+            }
 
             // Icon based on provider
-            const iconSvg = isOllama
-                ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>`
-                : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7L12 12L22 7L12 2Z"></path><path d="M12 12.5V22"></path><path d="M12 22L2 17"></path><path d="M12 22L22 17"></path></svg>`;
+            let iconSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7L12 12L22 7L12 2Z"></path><path d="M12 12.5V22"></path><path d="M12 22L2 17"></path><path d="M12 22L22 17"></path></svg>`;
+            
+            if (isOllama) {
+                iconSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>`;
+            } else if (isGemini) {
+                iconSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #8E75FF;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>`;
+            }
 
             const safeName = (m.name || 'Unnamed Model').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             const safeModelId = (m.modelId || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -376,12 +395,22 @@ function setupEventListeners() {
         newModelProvider.addEventListener('change', () => {
             try {
                 const provider = newModelProvider.value;
-                if (apiKeyGroup) apiKeyGroup.style.display = provider === 'openrouter' ? 'block' : 'none';
+                if (apiKeyGroup) apiKeyGroup.style.display = (provider === 'openrouter' || provider === 'gemini') ? 'block' : 'none';
                 if (baseUrlGroup) baseUrlGroup.style.display = provider === 'ollama' ? 'block' : 'none';
+                if (verifyGeminiBtn) verifyGeminiBtn.style.display = provider === 'gemini' ? 'block' : 'none';
+                
+                // Toggle between manual ID input and Gemini Select
+                if (modelIdGroup) modelIdGroup.style.display = provider === 'gemini' ? 'none' : 'block';
+                if (geminiModelGroup) geminiModelGroup.style.display = provider === 'gemini' ? 'block' : 'none';
+
+                if (apiKeyLabel) {
+                    apiKeyLabel.textContent = provider === 'gemini' ? 'Google AI Studio Key' : 'API Key';
+                }
+
                 if (provider === 'openrouter') {
                     if (newModelId) newModelId.placeholder = 'e.g. qwen/qwen3.6-plus:free';
                     if (newModelUrl) newModelUrl.value = '';
-                } else {
+                } else if (provider === 'ollama') {
                     if (newModelId) newModelId.placeholder = 'e.g. llama3';
                     if (newModelUrl) newModelUrl.value = 'http://127.0.0.1:11434';
                 }
@@ -391,12 +420,100 @@ function setupEventListeners() {
         });
     }
 
+    // Manual fetch/verify for Gemini
+    if (verifyGeminiBtn) {
+        verifyGeminiBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await fetchGeminiModelsForForm();
+        });
+    }
+
+    async function fetchGeminiModelsForForm() {
+        const key = newModelKey ? newModelKey.value.trim() : '';
+        if (!key || !newGeminiModelSelect) {
+            alert('Please enter your Gemini API key first.');
+            return;
+        }
+        
+        if (verifyGeminiBtn) verifyGeminiBtn.disabled = true;
+        if (geminiFetchStatus) {
+            geminiFetchStatus.textContent = 'Listing...';
+            geminiFetchStatus.style.color = 'var(--accent-color)';
+        }
+        
+        try {
+            // 1. Get full list
+            const allModels = await API.fetchGeminiModels(key);
+            if (!allModels || allModels.length === 0) {
+                if (geminiFetchStatus) geminiFetchStatus.textContent = 'No models found';
+                return;
+            }
+
+            // 2. Filter relevant ones
+            const candidateModels = allModels.filter(m => m.supportedGenerationMethods.includes('generateContent'));
+            
+            newGeminiModelSelect.innerHTML = '<option value="">Searching for working models...</option>';
+            
+            const workingModels = [];
+            let checkedCount = 0;
+
+            for (const m of candidateModels) {
+                checkedCount++;
+                if (geminiFetchStatus) {
+                    geminiFetchStatus.textContent = `Testing ${checkedCount}/${candidateModels.length}...`;
+                }
+
+                // Optimization: Always assume gemini-1.5-flash is working if user wants speed
+                // but let's test it anyway for true reliability
+                const isWorking = await API.testGeminiModel(key, m.name);
+                if (isWorking) {
+                    workingModels.push(m);
+                    // Update dropdown incrementally so user doesn't wait for the whole loop
+                    const opt = document.createElement('option');
+                    opt.value = m.name.replace('models/', '');
+                    opt.textContent = m.displayName;
+                    // If it was the first one, clear the "Searching..." message
+                    if (workingModels.length === 1) newGeminiModelSelect.innerHTML = '';
+                    newGeminiModelSelect.appendChild(opt);
+                }
+            }
+
+            if (workingModels.length === 0) {
+                newGeminiModelSelect.innerHTML = '<option value="">No working models found</option>';
+                if (geminiFetchStatus) {
+                    geminiFetchStatus.textContent = 'Verification Failed';
+                    geminiFetchStatus.style.color = '#ff4d4d';
+                }
+            } else {
+                if (geminiFetchStatus) {
+                    geminiFetchStatus.textContent = `✅ ${workingModels.length} Models Verified`;
+                    geminiFetchStatus.style.color = '#10a37f';
+                }
+            }
+        } catch (err) {
+            console.error('[APP/GEMINI] Verification error:', err);
+            if (geminiFetchStatus) {
+                geminiFetchStatus.textContent = 'Error during verification';
+                geminiFetchStatus.style.color = '#ff4d4d';
+            }
+        } finally {
+            if (verifyGeminiBtn) verifyGeminiBtn.disabled = false;
+        }
+    }
+
     if (addModelBtn) {
         addModelBtn.addEventListener('click', () => {
             try {
-                const name = newModelLabel ? newModelLabel.value.trim() : '';
-                const modelId = newModelId ? newModelId.value.trim() : '';
                 const provider = newModelProvider ? newModelProvider.value : 'ollama';
+                const name = newModelLabel ? newModelLabel.value.trim() : '';
+                let modelId = '';
+                
+                if (provider === 'gemini') {
+                    modelId = newGeminiModelSelect ? newGeminiModelSelect.value : '';
+                } else {
+                    modelId = newModelId ? newModelId.value.trim() : '';
+                }
+
                 const apiKey = newModelKey ? newModelKey.value.trim() : '';
                 const baseUrl = newModelUrl ? newModelUrl.value.trim() : '';
 
@@ -408,6 +525,11 @@ function setupEventListeners() {
                     if (newModelLabel) newModelLabel.value = '';
                     if (newModelId) newModelId.value = '';
                     if (newModelKey) newModelKey.value = '';
+                    if (newGeminiModelSelect) {
+                        newGeminiModelSelect.innerHTML = '<option value="">Enter API Key first...</option>';
+                    }
+                } else if (!modelId && provider === 'gemini') {
+                    alert('Please enter a valid API key and select a model from the list.');
                 }
             } catch (err) {
                 console.error('[APP] Add model error:', err);
@@ -796,6 +918,13 @@ async function performSearch(isF10 = false) {
                 const msg = data.choices[0].message;
                 currentRawResponse = msg ? (msg.content || '') : '';
                 if (msg && msg.reasoning_details) reasoningHtml = UI.renderReasoningTrace(msg.reasoning_details);
+            }
+        } else if (provider === 'gemini') {
+            const fullSystemPrompt = Config.buildSystemPrompt(userConfig);
+            const data = await API.generateGeminiResponse(apiKey, modelId, conversationHistory, fullSystemPrompt);
+            if (data && data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const msg = data.candidates[0].content;
+                currentRawResponse = (msg.parts && msg.parts[0]) ? msg.parts[0].text : '';
             }
         }
 
