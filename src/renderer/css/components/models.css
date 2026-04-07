@@ -1,77 +1,238 @@
 .models-container {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 32px;
     height: 100%;
+    animation: fadeIn 0.4s ease;
 }
 
+/* Models List Card Design */
 .models-list {
-    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    padding: 4px;
+    max-height: 400px;
     overflow-y: auto;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 10px;
-    background: rgba(255, 255, 255, 0.03);
+}
+
+.models-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.models-list::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
 }
 
 .model-item {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 16px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 10px;
-    border-bottom: 1px solid var(--border-color);
+    justify-content: space-between;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
 }
 
-.model-item:last-child {
-    border-bottom: none;
+.model-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.model-item.editing {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--accent-color);
+    transform: none;
+    box-shadow: 0 0 20px rgba(16, 163, 127, 0.1);
+}
+
+.model-info-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
+}
+
+.model-icon-container {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-color);
+    flex-shrink: 0;
 }
 
 .model-info {
     display: flex;
     flex-direction: column;
+    gap: 4px;
+    min-width: 0;
 }
 
 .model-name {
-    font-weight: 600;
-    font-size: 14px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.model-provider {
-    font-size: 12px;
+.model-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.provider-badge {
+    font-size: 9px;
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+.badge-ollama {
+    background: rgba(0, 255, 255, 0.1);
+    color: #00ffff;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.badge-openrouter {
+    background: rgba(16, 163, 127, 0.1);
+    color: var(--accent-color);
+    border: 1px solid rgba(16, 163, 127, 0.2);
+}
+
+.model-id-tag {
+    font-size: 11px;
     color: var(--text-secondary);
+    opacity: 0.6;
+    font-family: 'Inter', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
 }
 
-.remove-model-btn {
+.model-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.icon-button {
     background: transparent;
     border: none;
-    color: #ff4a4a;
     cursor: pointer;
-    padding: 5px;
-    border-radius: 4px;
-    transition: background 0.2s;
-}
-
-.remove-model-btn:hover {
-    background: rgba(255, 74, 74, 0.1);
-}
-
-.add-model-form {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 15px;
+    padding: 8px;
     border-radius: 8px;
-    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.icon-button:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Edit Mode Inputs */
+.model-item input {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-primary);
+    padding: 8px 12px;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.model-item input:focus {
+    border-color: var(--accent-color);
+    background: rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.1);
+}
+
+.model-item .edit-model-name {
+    font-size: 15px;
+    font-family: 'Outfit';
+    font-weight: 700;
+}
+
+/* Password Toggle Styling */
+.password-input-wrapper {
+    transition: all 0.2s;
+}
+
+.toggle-password-btn:hover {
+    opacity: 1 !important;
+    color: var(--accent-color) !important;
+    transform: translateY(-50%) scale(1.1) !important;
+}
+
+.toggle-password-btn svg {
+    transition: transform 0.2s;
+}
+
+.toggle-password-btn:active svg {
+    transform: scale(0.8);
+}
+
+/* Empty State */
+.models-list-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 48px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.empty-icon {
+    opacity: 0.3;
+}
+
+/* Add Form Layout */
+.add-model-form {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 24px;
+    border-radius: 20px;
 }
 
 .add-model-form h3 {
-    margin-top: 0;
-    margin-bottom: 15px;
-    font-size: 14px;
-    font-weight: 600;
+    margin: 0 0 20px 0;
+    font-family: 'Outfit';
+    font-size: 18px;
+    font-weight: 700;
 }
 
-.models-list-empty {
-    text-align: center;
-    padding: 20px;
-    color: var(--text-secondary);
-    font-style: italic;
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.form-group.full-width {
+    grid-column: span 2;
 }
