@@ -253,7 +253,7 @@
     align-items: center;
 }
 
-.status-indicator {
+.fetch-status-indicator {
     font-size: 11px;
     font-weight: 600;
     transition: all 0.3s ease;
@@ -261,12 +261,12 @@
     transform: translateY(2px);
 }
 
-.status-indicator.visible {
+.fetch-status-indicator.visible {
     opacity: 1;
     transform: translateY(0);
 }
 
-.status-indicator.loading {
+.fetch-status-indicator.loading {
     animation: pulse-op 1.5s infinite ease-in-out;
 }
 

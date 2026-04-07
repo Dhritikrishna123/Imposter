@@ -509,6 +509,19 @@ function setupEventListeners() {
         }
     }
 
+    // Reset Application / Logout Logic
+    const resetAppBtn = $('reset-app-btn');
+    if (resetAppBtn) {
+        resetAppBtn.addEventListener('click', () => {
+            const confirmed = confirm('CRITICAL WARNING: This will permanently delete ALL configurations, API keys, and models. You will be redirected to the onboarding screen. Proceed?');
+            
+            if (confirmed) {
+                localStorage.clear();
+                window.location.reload();
+            }
+        });
+    }
+
     if (addModelBtn) {
         addModelBtn.addEventListener('click', () => {
             try {

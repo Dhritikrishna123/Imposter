@@ -7,6 +7,7 @@
     border: 1px solid var(--border-color);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
     animation: cardEntrance 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    -webkit-app-region: no-drag;
 }
 
 @keyframes cardEntrance {
@@ -75,6 +76,7 @@
     box-sizing: border-box;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     outline: none;
+    -webkit-app-region: no-drag;
 }
 
 .form-group input:focus,
