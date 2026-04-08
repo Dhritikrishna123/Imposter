@@ -5,7 +5,6 @@ require('dotenv').config();
 const { createMainWindow, getMainWindow } = require('./window-manager');
 const { registerShortcuts, unregisterShortcuts } = require('./shortcuts');
 const { registerIpcHandlers } = require('./ipc-handlers');
-
 // ── Process-Level Crash Guards ──────────────────────────────────────────────
 
 process.on('uncaughtException', (error) => {

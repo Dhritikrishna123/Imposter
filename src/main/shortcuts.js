@@ -84,6 +84,8 @@ function registerShortcuts() {
     safeRegister('CommandOrControl+=', handleZoomIn);
     safeRegister('CommandOrControl+-', handleZoomOut);
 
+    safeRegister('CommandOrControl+Shift+Up', () => safeSend('scroll', -1));
+    safeRegister('CommandOrControl+Shift+Down', () => safeSend('scroll', 1));
     safeRegister('CommandOrControl+Shift+I', () => safeSend('focus-input'));
     safeRegister('CommandOrControl+Shift+B', () => safeSend('toggle-auto-reply'));
     safeRegister('CommandOrControl+Shift+Enter', () => safeSend('trigger-search'));

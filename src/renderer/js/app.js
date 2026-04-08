@@ -130,8 +130,31 @@ function applyAppMode(mode) {
         if (windowControls) {
             windowControls.style.display = mode === 'normal' ? 'flex' : 'none';
         }
+
+        scrubTooltips(mode);
     } catch (err) {
         console.error('[APP] Mode switch error:', err);
+    }
+}
+
+function scrubTooltips(mode) {
+    try {
+        const elements = document.querySelectorAll('[title], [data-stealth-title]');
+        elements.forEach(el => {
+            if (mode === 'stealth' || (userConfig && userConfig.appMode === 'stealth')) {
+                if (el.hasAttribute('title')) {
+                    el.setAttribute('data-stealth-title', el.getAttribute('title'));
+                    el.removeAttribute('title');
+                }
+            } else {
+                if (el.hasAttribute('data-stealth-title')) {
+                    el.setAttribute('title', el.getAttribute('data-stealth-title'));
+                    el.removeAttribute('data-stealth-title');
+                }
+            }
+        });
+    } catch (err) {
+        console.error('[APP] Tooltip scrubbing error:', err);
     }
 }
 
@@ -382,6 +405,8 @@ function renderCustomModelsList() {
                 }
             });
         });
+        // Ensure new dynamic elements follow current stealth rules
+        scrubTooltips(userConfig.appMode || 'stealth');
 
     } catch (err) {
         console.error('[APP] Model list render error:', err);
@@ -746,7 +771,14 @@ function setupEventListeners() {
     });
 
     if (window.electronAPI) {
-        window.electronAPI.onFocusInput(() => { if (promptInput) promptInput.focus(); });
+        window.electronAPI.onFocusInput(() => { 
+            if (promptInput) {
+                promptInput.focus();
+                // If there's already text, scroll to the end
+                const len = promptInput.value.length;
+                promptInput.setSelectionRange(len, len);
+            } 
+        });
         window.electronAPI.onTriggerSearch(() => performSearch());
         window.electronAPI.onScroll((dir) => {
             if (chatStage) chatStage.scrollBy({ top: dir * 150, behavior: 'smooth' });
