@@ -1,0 +1,32 @@
+name: Imposter CI
+
+on:
+  push:
+    branches: [ main, prod ]
+  pull_request:
+    branches: [ main, prod ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-id: 20
+
+    - name: Install Dependencies
+      run: npm install
+
+    - name: Run Lint
+      run: npm run lint
+      continue-on-error: true
+
+    - name: Build Check
+      run: npm run dist -- --dir
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

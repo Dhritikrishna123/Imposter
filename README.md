@@ -3,9 +3,19 @@
 <div align="center">
   <img src="public/logo.png" width="128" alt="Imposter Logo">
   <h3>A seamless, unobtrusive AI interface for your desktop environment.</h3>
+  <p>
+    <img src="https://img.shields.io/github/license/Puskar-Roy/Imposter?style=flat-square&color=blue" alt="License">
+    <img src="https://img.shields.io/github/stars/Puskar-Roy/Imposter?style=flat-square&color=gold" alt="Stars">
+    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome">
+  </p>
   <br>
   <img src="public/imposter.png" alt="Imposter Application Banner" width="100%">
 </div>
+
+---
+
+## 🚀 Professional & Open Source Ready
+This repository is configured for professional desktop development and open-source contribution. Check out our **[Contributing Guide](CONTRIBUTING.md)** and **[Security Policy](SECURITY.md)** to get started.
 
 ---
 

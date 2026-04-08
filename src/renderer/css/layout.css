@@ -25,17 +25,28 @@
     align-items: center;
 }
 
+.header-tools {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 12px;
+}
+
 .icon-button {
     background: none;
     border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    padding: 6px;
-    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 8px;
     display: flex;
     align-items: center;
+    justify-content: center;
     transition: all 0.2s;
     -webkit-app-region: no-drag;
+    flex-shrink: 0;
 }
 
 .icon-button:hover {
@@ -47,8 +58,8 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-left: 14px;
-    padding-left: 14px;
+    margin-left: 12px;
+    padding-left: 12px;
     border-left: 1px solid rgba(255, 255, 255, 0.1);
 }
 

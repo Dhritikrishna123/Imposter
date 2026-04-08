@@ -61,7 +61,13 @@ const newModelKey = $('new-model-key');
 const newModelUrl = $('new-model-url');
 const addModelBtn = $('add-model-btn');
 const apiKeyGroup = $('api-key-group');
+const apiKeyLabel = $('api-key-label');
 const baseUrlGroup = $('base-url-group');
+const modelIdGroup = $('model-id-group');
+const geminiModelGroup = $('gemini-model-group');
+const newGeminiModelSelect = $('new-gemini-model-select');
+const verifyGeminiBtn = $('verify-gemini-btn');
+const geminiFetchStatus = $('gemini-fetch-status');
 
 // Buttons
 const saveConfigBtn = $('save-config-btn');
@@ -72,6 +78,7 @@ const saveSettingsBtn = $('save-settings');
 // State
 let userConfig = Config.getDefaultConfig();
 let customModels = [];
+let editingIndex = -1; // -1 means no model is currently being edited
 let currentRawResponse = '';
 let isRecording = false;
 
@@ -80,18 +87,38 @@ let conversationHistory = [];
 let emptyStateHtml = '';
 
 async function init() {
+    console.log('[INIT] Starting application setup...');
     try {
         setupMarkdown();
+
+        console.log('[INIT] Loading app configuration...');
         loadAppConfig();
 
+        // Capture initial UI state
         emptyStateHtml = resultContent ? resultContent.innerHTML : '';
         customModels = Config.getSavedModels();
+
+        console.log('[INIT] Applying app mode...');
         applyAppMode(userConfig.appMode || 'stealth');
-        await loadModels();
+
+        // --- CRITICAL: Attach listeners BEFORE potentially slow operations ---
+        console.log('[INIT] Attaching event listeners (UI Interactivity Ready)');
         setupEventListeners();
+
+        console.log('[INIT] Rendering initial models list...');
         renderCustomModelsList();
+
+        // --- NON-BLOCKING: Background model scan ---
+        console.log('[INIT] Starting background model scan...');
+        loadModels().then(() => {
+            console.log('[INIT] Background model scan complete.');
+        }).catch(err => {
+            console.error('[INIT] Background model scan failed:', err);
+        });
+
+        console.log('[INIT] Setup finished. App is responsive.');
     } catch (err) {
-        console.error('[INIT] App initialization error:', err);
+        console.error('[INIT] Critical initialization error:', err);
     }
 }
 
@@ -168,38 +195,194 @@ function renderCustomModelsList() {
     if (!customModelsList) return;
     try {
         customModelsList.innerHTML = '';
+
+        if (customModels.length === 0) {
+            customModelsList.innerHTML = `
+                <div class="models-list-empty">
+                    <div class="empty-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7L12 12L22 7L12 2Z"></path><path d="M2 17L12 22L22 17"></path><path d="M2 12L12 17L22 12"></path></svg>
+                    </div>
+                    <p>No custom models registered yet.</p>
+                </div>
+            `;
+            return;
+        }
+
         customModels.forEach((m, index) => {
             if (!m) return;
+            const isEditing = editingIndex === index;
             const item = document.createElement('div');
-            item.className = 'model-item';
-            const safeName = (m.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            const safeProvider = (m.provider || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            item.className = `model-item ${isEditing ? 'editing' : ''}`;
+
+            const isOllama = m.provider === 'ollama';
+            const isGemini = m.provider === 'gemini';
+            let providerClass = 'badge-openrouter';
+            let providerLabel = 'Cloud';
+            
+            if (isOllama) {
+                providerClass = 'badge-ollama';
+                providerLabel = 'Local';
+            } else if (isGemini) {
+                providerClass = 'badge-gemini';
+                providerLabel = 'Gemini';
+            }
+
+            // Icon based on provider
+            let iconSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7L12 12L22 7L12 2Z"></path><path d="M12 12.5V22"></path><path d="M12 22L2 17"></path><path d="M12 22L22 17"></path></svg>`;
+            
+            if (isOllama) {
+                iconSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>`;
+            } else if (isGemini) {
+                iconSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #8E75FF;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>`;
+            }
+
+            const safeName = (m.name || 'Unnamed Model').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             const safeModelId = (m.modelId || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            item.innerHTML = `
-                <div class="model-info">
-                    <strong>${safeName}</strong>
-                    <span>${safeProvider} - ${safeModelId}</span>
-                </div>
-                <button class="secondary-btn delete-model-btn" data-index="${index}" style="padding: 6px 12px; font-size: 12px; color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3);">Remove</button>
-            `;
+            const safeBaseUrl = (m.baseUrl || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const safeApiKey = (m.apiKey || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            if (isEditing) {
+                // Edit Mode Template
+                item.innerHTML = `
+                    <div class="model-info-wrapper" style="flex: 1;">
+                        <div class="model-icon-container">
+                            ${iconSvg}
+                        </div>
+                        <div class="model-info" style="flex: 1; gap: 8px;">
+                            <input type="text" class="edit-model-name" value="${safeName}" placeholder="Friendly Name" style="width: 100%;">
+                            <div class="model-meta" style="flex-wrap: wrap;">
+                                <span class="provider-badge ${providerClass}">${providerLabel}</span>
+                                <span class="model-id-tag">ID: ${safeModelId}</span>
+                                ${isOllama
+                        ? `<input type="text" class="edit-model-url" value="${safeBaseUrl}" placeholder="Base URL" style="width: 100%; margin-top: 4px; font-size: 11px;">`
+                        : `
+                                    <div class="password-input-wrapper" style="width: 100%; position: relative; margin-top: 4px;">
+                                        <input type="password" class="edit-model-key" value="${safeApiKey}" placeholder="API Key" style="width: 100%; font-size: 11px; padding-right: 32px;">
+                                        <button class="toggle-password-btn" title="Toggle Visibility" style="position: absolute; right: -40px; top: 52%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-secondary); opacity: 0.5; display: flex; align-items: center; justify-content: center; padding: 4px; transition: all 0.2s;">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-icon">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                <circle cx="12" cy="12" r="3"></circle>
+                                            </svg>
+                                        </button>
+                                    </div>`
+                    }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="model-actions">
+                        <button class="icon-button save-model-edit-btn" data-index="${index}" title="Save">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-color);"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </button>
+                        <button class="icon-button cancel-model-edit-btn" data-index="${index}" title="Cancel">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary);"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                `;
+            } else {
+                // Normal View Mode Template
+                item.innerHTML = `
+                    <div class="model-info-wrapper">
+                        <div class="model-icon-container">
+                            ${iconSvg}
+                        </div>
+                        <div class="model-info">
+                            <span class="model-name">${safeName}</span>
+                            <div class="model-meta">
+                                <span class="provider-badge ${providerClass}">${providerLabel}</span>
+                                <span class="model-id-tag">${safeModelId}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="model-actions">
+                        <button class="icon-button edit-model-btn" data-index="${index}" title="Edit Configuration">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary);"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        </button>
+                        <button class="icon-button delete-model-btn" data-index="${index}" title="Remove Model">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #ff4d4d;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </button>
+                    </div>
+                `;
+            }
+
             customModelsList.appendChild(item);
         });
 
-        document.querySelectorAll('.delete-model-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                try {
-                    const index = parseInt(btn.getAttribute('data-index'), 10);
-                    if (!isNaN(index) && index >= 0 && index < customModels.length) {
-                        customModels.splice(index, 1);
-                        Config.saveModels(customModels);
-                        renderCustomModelsList();
-                        loadModels();
+        // Event Listeners for action buttons
+        document.querySelectorAll('.edit-model-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                editingIndex = parseInt(btn.getAttribute('data-index'), 10);
+                renderCustomModelsList();
+            });
+        });
+
+        // Toggle Password Visibility
+        document.querySelectorAll('.toggle-password-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const wrapper = btn.closest('.password-input-wrapper');
+                const input = wrapper ? wrapper.querySelector('input') : null;
+                const icon = btn.querySelector('svg');
+
+                if (input && icon) {
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+                    } else {
+                        input.type = 'password';
+                        icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
                     }
-                } catch (err) {
-                    console.error('[APP] Model delete error:', err);
                 }
             });
         });
+
+        document.querySelectorAll('.cancel-model-edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                editingIndex = -1;
+                renderCustomModelsList();
+            });
+        });
+
+        document.querySelectorAll('.save-model-edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const index = parseInt(btn.getAttribute('data-index'), 10);
+                const item = btn.closest('.model-item');
+                if (!item) return;
+
+                const newName = item.querySelector('.edit-model-name').value.trim();
+                const newUrl = item.querySelector('.edit-model-url')?.value.trim();
+                const newKey = item.querySelector('.edit-model-key')?.value.trim();
+
+                if (newName && index >= 0 && index < customModels.length) {
+                    customModels[index].name = newName;
+                    if (newUrl !== undefined) customModels[index].baseUrl = newUrl;
+                    if (newKey !== undefined) customModels[index].apiKey = newKey;
+
+                    Config.saveModels(customModels);
+                    editingIndex = -1;
+                    renderCustomModelsList();
+                    loadModels();
+                }
+            });
+        });
+
+        document.querySelectorAll('.delete-model-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const index = parseInt(btn.getAttribute('data-index'), 10);
+                if (!isNaN(index) && index >= 0 && index < customModels.length) {
+                    customModels.splice(index, 1);
+                    Config.saveModels(customModels);
+                    editingIndex = -1;
+                    renderCustomModelsList();
+                    loadModels();
+                }
+            });
+        });
+
     } catch (err) {
         console.error('[APP] Model list render error:', err);
     }
@@ -212,12 +395,22 @@ function setupEventListeners() {
         newModelProvider.addEventListener('change', () => {
             try {
                 const provider = newModelProvider.value;
-                if (apiKeyGroup) apiKeyGroup.style.display = provider === 'openrouter' ? 'block' : 'none';
+                if (apiKeyGroup) apiKeyGroup.style.display = (provider === 'openrouter' || provider === 'gemini') ? 'block' : 'none';
                 if (baseUrlGroup) baseUrlGroup.style.display = provider === 'ollama' ? 'block' : 'none';
+                if (verifyGeminiBtn) verifyGeminiBtn.style.display = provider === 'gemini' ? 'block' : 'none';
+                
+                // Toggle between manual ID input and Gemini Select
+                if (modelIdGroup) modelIdGroup.style.display = provider === 'gemini' ? 'none' : 'block';
+                if (geminiModelGroup) geminiModelGroup.style.display = provider === 'gemini' ? 'block' : 'none';
+
+                if (apiKeyLabel) {
+                    apiKeyLabel.textContent = provider === 'gemini' ? 'Google AI Studio Key' : 'API Key';
+                }
+
                 if (provider === 'openrouter') {
                     if (newModelId) newModelId.placeholder = 'e.g. qwen/qwen3.6-plus:free';
                     if (newModelUrl) newModelUrl.value = '';
-                } else {
+                } else if (provider === 'ollama') {
                     if (newModelId) newModelId.placeholder = 'e.g. llama3';
                     if (newModelUrl) newModelUrl.value = 'http://127.0.0.1:11434';
                 }
@@ -227,12 +420,121 @@ function setupEventListeners() {
         });
     }
 
+    // Manual fetch/verify for Gemini
+    if (verifyGeminiBtn) {
+        verifyGeminiBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await fetchGeminiModelsForForm();
+        });
+    }
+
+    async function fetchGeminiModelsForForm() {
+        const key = newModelKey ? newModelKey.value.trim() : '';
+        if (!key || !newGeminiModelSelect) {
+            alert('Please enter your Gemini API key first.');
+            return;
+        }
+        
+        if (verifyGeminiBtn) verifyGeminiBtn.disabled = true;
+        if (geminiFetchStatus) {
+            geminiFetchStatus.textContent = 'Listing Models...';
+            geminiFetchStatus.classList.add('visible', 'loading');
+            geminiFetchStatus.style.color = 'var(--accent-color)';
+        }
+        
+        try {
+            // 1. Get full list
+            const allModels = await API.fetchGeminiModels(key);
+            if (!allModels || allModels.length === 0) {
+                if (geminiFetchStatus) {
+                    geminiFetchStatus.textContent = 'No models found';
+                    geminiFetchStatus.classList.remove('loading');
+                }
+                return;
+            }
+
+            // 2. Filter relevant ones
+            const candidateModels = allModels.filter(m => m.supportedGenerationMethods.includes('generateContent'));
+            
+            newGeminiModelSelect.innerHTML = '<option value="">Searching for working models...</option>';
+            
+            const workingModels = [];
+            let checkedCount = 0;
+
+            for (const m of candidateModels) {
+                checkedCount++;
+                if (geminiFetchStatus) {
+                    geminiFetchStatus.textContent = `Verifying ${checkedCount}/${candidateModels.length}...`;
+                }
+
+                const isWorking = await API.testGeminiModel(key, m.name);
+                if (isWorking) {
+                    workingModels.push(m);
+                    // Update dropdown incrementally
+                    const opt = document.createElement('option');
+                    opt.value = m.name.replace('models/', '');
+                    opt.textContent = m.displayName;
+                    if (workingModels.length === 1) newGeminiModelSelect.innerHTML = '';
+                    newGeminiModelSelect.appendChild(opt);
+                }
+            }
+
+            if (workingModels.length === 0) {
+                newGeminiModelSelect.innerHTML = '<option value="">No working models found</option>';
+                if (geminiFetchStatus) {
+                    geminiFetchStatus.textContent = 'Verification Failed';
+                    geminiFetchStatus.style.color = '#ff4d4d';
+                    geminiFetchStatus.classList.remove('loading');
+                }
+            } else {
+                if (geminiFetchStatus) {
+                    geminiFetchStatus.textContent = `${workingModels.length} Models Verified`;
+                    geminiFetchStatus.style.color = '#10a37f';
+                    geminiFetchStatus.classList.remove('loading');
+                }
+                // Smooth focus after a short delay
+                setTimeout(() => {
+                    if (newGeminiModelSelect) newGeminiModelSelect.focus();
+                }, 400);
+            }
+        } catch (err) {
+            console.error('[APP/GEMINI] Verification error:', err);
+            if (geminiFetchStatus) {
+                geminiFetchStatus.textContent = 'Error during verification';
+                geminiFetchStatus.style.color = '#ff4d4d';
+                geminiFetchStatus.classList.remove('loading');
+            }
+        } finally {
+            if (verifyGeminiBtn) verifyGeminiBtn.disabled = false;
+        }
+    }
+
+    // Reset Application / Logout Logic
+    const resetAppBtn = $('reset-app-btn');
+    if (resetAppBtn) {
+        resetAppBtn.addEventListener('click', () => {
+            const confirmed = confirm('CRITICAL WARNING: This will permanently delete ALL configurations, API keys, and models. You will be redirected to the onboarding screen. Proceed?');
+            
+            if (confirmed) {
+                localStorage.clear();
+                window.location.reload();
+            }
+        });
+    }
+
     if (addModelBtn) {
         addModelBtn.addEventListener('click', () => {
             try {
-                const name = newModelLabel ? newModelLabel.value.trim() : '';
-                const modelId = newModelId ? newModelId.value.trim() : '';
                 const provider = newModelProvider ? newModelProvider.value : 'ollama';
+                const name = newModelLabel ? newModelLabel.value.trim() : '';
+                let modelId = '';
+                
+                if (provider === 'gemini') {
+                    modelId = newGeminiModelSelect ? newGeminiModelSelect.value : '';
+                } else {
+                    modelId = newModelId ? newModelId.value.trim() : '';
+                }
+
                 const apiKey = newModelKey ? newModelKey.value.trim() : '';
                 const baseUrl = newModelUrl ? newModelUrl.value.trim() : '';
 
@@ -244,6 +546,11 @@ function setupEventListeners() {
                     if (newModelLabel) newModelLabel.value = '';
                     if (newModelId) newModelId.value = '';
                     if (newModelKey) newModelKey.value = '';
+                    if (newGeminiModelSelect) {
+                        newGeminiModelSelect.innerHTML = '<option value="">Enter API Key first...</option>';
+                    }
+                } else if (!modelId && provider === 'gemini') {
+                    alert('Please enter a valid API key and select a model from the list.');
                 }
             } catch (err) {
                 console.error('[APP] Add model error:', err);
@@ -342,21 +649,75 @@ function setupEventListeners() {
     }
 
     if (saveConfigBtn) {
-        saveConfigBtn.addEventListener('click', () => {
+        const handleOnboardingSave = () => {
+            console.log('[ONBOARDING] Initialization triggered');
             try {
                 const name = userNameInput ? userNameInput.value.trim() : '';
                 const prompt = systemPromptInput ? systemPromptInput.value.trim() : '';
+                const card = document.querySelector('.onboarding-card');
+
                 if (name) {
+                    console.log('[ONBOARDING] Valid name provided, saving config...');
+                    saveConfigBtn.textContent = 'Initializing...';
+                    saveConfigBtn.disabled = true;
+
+                    // Logic for "Going Home"
                     userConfig = Config.saveConfig(name, prompt, 'stealth', '');
-                    if (onboardingOverlay) onboardingOverlay.classList.add('hidden');
+
+                    if (onboardingOverlay) {
+                        onboardingOverlay.classList.add('hidden');
+                        console.log('[ONBOARDING] Overlay hidden class added');
+                        // Remove from layout after transition
+                        setTimeout(() => {
+                            onboardingOverlay.style.display = 'none';
+                            console.log('[ONBOARDING] Overlay fully removed from display');
+                        }, 400);
+                    }
+
+                    // Refresh UI components
+                    UI.updateGreeting($('greeting-container'), userConfig.name);
                     if (conversationHistory.length === 0 && resultContent) {
-                        UI.updateGreeting(resultContent.querySelector('#greeting-container'), userConfig.name);
+                        const homeGreeting = resultContent.querySelector('#greeting-container');
+                        if (homeGreeting) UI.updateGreeting(homeGreeting, userConfig.name);
+                    }
+
+                    // Final refresh
+                    loadModels();
+                } else {
+                    console.warn('[ONBOARDING] Initialization failed: Name is empty');
+                    // Visual Validation Failure
+                    if (card) {
+                        card.classList.remove('shake');
+                        void card.offsetWidth; // Trigger reflow
+                        card.classList.add('shake');
+                    }
+                    if (userNameInput) {
+                        userNameInput.classList.add('error');
+                        userNameInput.focus();
                     }
                 }
             } catch (err) {
-                console.error('[APP] Config save error:', err);
+                console.error('[ONBOARDING] Critical error during save:', err);
+                if (saveConfigBtn) {
+                    saveConfigBtn.textContent = 'Error - Try Again';
+                    saveConfigBtn.disabled = false;
+                }
             }
-        });
+        };
+
+        console.log('[ONBOARDING] Attaching listeners to saveConfigBtn');
+        saveConfigBtn.addEventListener('click', handleOnboardingSave);
+
+        // Keyboard Support for Enter
+        if (userNameInput) {
+            userNameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleOnboardingSave();
+                }
+                userNameInput.classList.remove('error');
+            });
+        }
     }
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -378,10 +739,10 @@ function setupEventListeners() {
     });
 
     if (winMinBtn) winMinBtn.addEventListener('click', () => {
-        try { window.electronAPI.minimizeApp(); } catch (_) {}
+        try { window.electronAPI.minimizeApp(); } catch (_) { }
     });
     if (winCloseBtn) winCloseBtn.addEventListener('click', () => {
-        try { window.electronAPI.closeApp(); } catch (_) {}
+        try { window.electronAPI.closeApp(); } catch (_) { }
     });
 
     if (window.electronAPI) {
@@ -393,7 +754,7 @@ function setupEventListeners() {
         window.electronAPI.onCopyMain(() => {
             try {
                 if (currentRawResponse) {
-                    navigator.clipboard.writeText(currentRawResponse).catch(() => {});
+                    navigator.clipboard.writeText(currentRawResponse).catch(() => { });
                     if (statusText) statusText.textContent = 'Copied!';
                     setTimeout(() => { if (statusText) statusText.textContent = 'Ready'; }, 2000);
                 }
@@ -420,7 +781,7 @@ function setupEventListeners() {
                 try {
                     AssemblyService.stop();
                     window.electronAPI.closeIslandWindow();
-                } catch (_) {}
+                } catch (_) { }
                 isRecording = false;
                 if (statusText) statusText.textContent = 'Ready';
             } else {
@@ -579,6 +940,13 @@ async function performSearch(isF10 = false) {
                 currentRawResponse = msg ? (msg.content || '') : '';
                 if (msg && msg.reasoning_details) reasoningHtml = UI.renderReasoningTrace(msg.reasoning_details);
             }
+        } else if (provider === 'gemini') {
+            const fullSystemPrompt = Config.buildSystemPrompt(userConfig);
+            const data = await API.generateGeminiResponse(apiKey, modelId, conversationHistory, fullSystemPrompt);
+            if (data && data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const msg = data.candidates[0].content;
+                currentRawResponse = (msg.parts && msg.parts[0]) ? msg.parts[0].text : '';
+            }
         }
 
         const aiMsg = {
@@ -594,7 +962,7 @@ async function performSearch(isF10 = false) {
         appendChatMessage(aiMsg);
 
         if (isF10 && currentRawResponse) {
-            try { window.electronAPI.sendAiResponseToIsland(currentRawResponse); } catch (_) {}
+            try { window.electronAPI.sendAiResponseToIsland(currentRawResponse); } catch (_) { }
         }
 
     } catch (err) {
@@ -612,7 +980,7 @@ async function performSearch(isF10 = false) {
         appendChatMessage(errorMsg);
 
         if (isF10) {
-            try { window.electronAPI.sendAiResponseToIsland('Error: Could not reach AI'); } catch (_) {}
+            try { window.electronAPI.sendAiResponseToIsland('Error: Could not reach AI'); } catch (_) { }
         }
     } finally {
         searchBtn.disabled = false;
