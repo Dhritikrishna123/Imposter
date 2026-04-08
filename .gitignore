@@ -9,7 +9,7 @@ release/
 out/
 build/
 bin/
-
+dist-temp
 # Temporary Files
 *.log
 *.tmp

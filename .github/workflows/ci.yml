@@ -1,32 +1,58 @@
-name: Imposter CI
+name: Imposter CI/CD
 
 on:
   push:
-    branches: [ main, prod ]
+    branches: ['**']
+    tags: ['v*']
   pull_request:
-    branches: [ main, prod ]
+    branches: ['**']
 
 jobs:
-  build:
+  # --- CHECK STAGE: Runs on EVERY branch push and EVERY Pull Request ---
+  # Ensures that no matter what you're working on, the code still builds.
+  check:
+    name: Build Check
+    if: github.event_name == 'pull_request' || (!startsWith(github.ref, 'refs/tags/v'))
     runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build Check (Dry Run)
+        run: pnpm run dist -- --dir
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # --- RELEASE STAGE: Only runs for version tags (v*) ---
+  release:
+    name: Production Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-id: 20
+      - name: Install Dependencies
+        run: pnpm install --no-frozen-lockfile
 
-    - name: Install Dependencies
-      run: npm install
-
-    - name: Run Lint
-      run: npm run lint
-      continue-on-error: true
-
-    - name: Build Check
-      run: npm run dist -- --dir
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & Publish Release
+        run: pnpm run dist -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

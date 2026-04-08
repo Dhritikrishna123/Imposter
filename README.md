@@ -1,104 +1,84 @@
-# Imposter: Discrete AI Assistant
+# Imposter: Beating a Broken System
 
 <div align="center">
   <img src="public/logo.png" width="128" alt="Imposter Logo">
-  <h3>A seamless, unobtrusive AI interface for your desktop environment.</h3>
-  <p>
-    <img src="https://img.shields.io/github/license/Puskar-Roy/Imposter?style=flat-square&color=blue" alt="License">
-    <img src="https://img.shields.io/github/stars/Puskar-Roy/Imposter?style=flat-square&color=gold" alt="Stars">
-    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome">
-  </p>
+  <h3>An undetectable multi-LLM companion. Designed for your most critical live calls and assessments.</h3>
+  <p><strong>Official Website: <a href="https://www.tryimposter.site">tryimposter.site</a></strong></p>
   <br>
   <img src="public/imposter.png" alt="Imposter Application Banner" width="100%">
 </div>
 
 ---
 
-## 🚀 Professional & Open Source Ready
-This repository is configured for professional desktop development and open-source contribution. Check out our **[Contributing Guide](CONTRIBUTING.md)** and **[Security Policy](SECURITY.md)** to get started.
+## Key Capabilities
+
+Imposter provides a discreet, always-on-top AI layer designed for maximum invisibility.
+
+*   **Stealth Window**: Hardware-level DRM protection makes the AI invisible to screen-sharing, screenshots, and meeting platforms (Zoom, Teams).
+*   **Voice Transcription**: Real-time system audio capture streamed to AssemblyAI for live results.
+*   **Screen OCR**: Local Tesseract.js extraction from any region-snip directly into your AI prompt.
+*   **High-Stakes Personas**: 12 context-aware identities tailored for specific assessment scenarios.
+*   **Multi-Provider AI**: Connect to the world's most powerful models through a unified interface.
+    *   **Google Gemini**: High-performance reasoning via Google AI Studio.
+    *   **OpenRouter**: Access to hundreds of cloud models (Claude, GPT, Llama) with a single key.
+    *   **Ollama**: Complete privacy with local models running on your own hardware. Zero internet required.
+    > **[View Detailed Provider Setup Guide →](https://www.tryimposter.site/model-providers)**
 
 ---
 
-## The "Stealth Mode" Architecture
+## Official Resources
 
-**Imposter** is a background-first AI assistant application designed for maximum discretion. Built on a specialized architecture, it remains hidden, non-intrusive, and computationally isolated from your primary workflows until explicitly triggered.
-
-![Imposter Architecture](public/architecture-diagram.png)
-
-### Key Capabilities (Overview)
-
-| Category | Highlights |
-|---|---|
-| **Interface** | Frameless • Transparent • Always-on-top • OS-level Content Protection (Hidden from screen-shares) |
-| **Intelligent Engine** | Multi-turn memory • Custom Instruction Context • Markdown rendering + Syntax Highlighting |
-| **Multi-Provider** | Zero-latency local models via **Ollama** • Cloud models via **OpenRouter** |
-| **Audio Processing** | Live system audio capture • AssemblyAI transcription • Floating "Dynamic Island" overlay |
-| **Screen Capture & OCR** | Full-screen coordinate crop • Local Tesseract.js text extraction • Auto-fills the search prompt |
-
-> **Comprehensive Documentation**  
-> For a full breakdown of the persona engine, configuration panels, and all system options, please review the **[Complete Feature Map & Inventory](docs/features.md)**.
+*   **[Full Features Map](https://www.tryimposter.site/features)** – Deep dive into the stealth toolkit.
+*   **[Model Providers](https://www.tryimposter.site/model-providers)** – Setup guides for **Gemini**, **OpenRouter**, and **Ollama**.
+*   **[Architecture Guide](https://www.tryimposter.site/architecture)** – Technical breakdown of the stealth bridge.
+*   **[Upcoming Roadmap](https://www.tryimposter.site/upcoming)** – The Chameleon Switch & Double-Display.
 
 ---
 
-## How it Works
+## The Stealth Advantage
 
-Imposter operates as a high-performance **Electron-based shell** communicating directly with your local **Ollama** instance or premium cloud endpoints. To ensure absolute privacy, all application data—including system prompts, configuration variables, and custom personas—is stored **100% locally** on your device.
+Built on a specialized architecture, Imposter remains non-intrusive and computationally isolated until triggered.
 
-For a technical deep dive into the IPC communication, Context Isolation, PCM Audio Streaming pipelines, and DRM-level stealth mechanics, please reference the **[Official Architecture & Developer Guide](docs/architecture-guide.md)**.
-
----
-
-## Educational Notice
-
-> [!WARNING]
-> This application is provided strictly for **educational, developmental, and personal productivity purposes**. The author assumes no responsibility for any misuse or compliance violations associated with the deployment of this software.
+*   **Hardware DRM**: Blocks all standard capture APIs. 
+*   **Disguised UI**: Instantly transform into a standard utility identity to stay under the radar.
+*   **100% Local**: Zero telemetry. Prompts, conversations, and keys never leave your machine.
 
 ---
 
-## Global Shortcuts
+## Technical Architecture
 
-Control the application seamlessly via hardcoded system-level shortcuts:
+Imposter leverages a secure, multi-process environment:
+*   **Main Process**: High-privilege Node.js managing windows and OS-level primitives.
+*   **Renderer Processes**: Isolated Chromium instances for the Stealth UI and Snipper tools.
+*   **Stealth Bridge**: Secure IPC with Context Isolation for safe OS bridging.
 
-| Shortcut | System Action |
-| :--- | :--- |
-| `Ctrl + Shift + I` | **Focus Input**: Shift system focus directly to the prompt input. |
-| `Ctrl + Shift + Enter` | **Execute Query**: Trigger the AI process from any context. |
-| `Ctrl + Shift + Up/Down` | **Vertical Scroll**: Navigate AI responses without external pointer input. |
-| `Ctrl + Shift + C` | **Deep Copy**: Copy the entire raw AI response directly to the system clipboard. |
-| `Ctrl + Shift + Q` | **Terminate**: Force close the application instantly. |
-| `Ctrl + Shift + D` | **Debug**: Toggle Developer Tools for system and rendering analysis. |
+> **[Read Full Architecture Docs on the Web →](https://www.tryimposter.site/architecture)**
 
 ---
 
-## Installation & Setup
+## Quick Start
 
-### Prerequisites
-*   **[Ollama](https://ollama.com/)**: Must be deployed and running locally on port `11434`.
-*   **Node.js**: The latest LTS version is recommended.
-
-### Local Development
-1.  **Clone the Repository**:
-    ```bash
-    git clone https://github.com/Puskar-Roy/imposter.git
-    cd imposter
-    ```
-2.  **Install Dependencies**:
-    ```bash
-    npm install
-    ```
-3.  **Launch the Environment**:
-    ```bash
-    npm start
-    ```
-
-### Production Build (.exe)
-To compile a standalone Windows executable for deployment:
+### 1. Installation
 ```bash
-npm run dist
+git clone https://github.com/Puskar-Roy/Imposter.git
+npm install
 ```
-Compiled binaries are output to the `/dist` directory.
+
+### 2. Configuration
+Copy `.env.example` to `.env` and add your **Gemini** or **OpenRouter** keys.
+> **[Need help with API keys? Visit our Provider Guide →](https://www.tryimposter.site/model-providers)**
+
+### 3. Execution
+```bash
+npm start
+```
 
 ---
 
-## Architecture & Maintenance
+## Community & Security
+
+*   **Contributing**: Check out our **[Contributing Guide](CONTRIBUTING.md)**.
+*   **Security**: Report vulnerabilities via our **[Security Policy](SECURITY.md)**.
+
 Developed by **[Puskar Roy](https://github.com/Puskar-Roy)**.
+Stay Invisible. Stay Ahead.
