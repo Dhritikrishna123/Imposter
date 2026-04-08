@@ -12,6 +12,9 @@
     "start": "electron .",
     "dist": "electron-builder",
     "dist:fast": "electron-builder",
+    "build:linux": "electron-builder --linux",
+    "build:mac": "electron-builder --mac",
+    "build:all": "electron-builder -wml",
     "lint": "eslint src/**/*.js",
     "lint:fix": "eslint src/**/*.js --fix",
     "format": "prettier --write \"src/**/*.{js,css,html}\" \"*.md\""
@@ -50,6 +53,22 @@
         "portable"
       ],
       "icon": "build/icon.png"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "build/icon.png",
+      "category": "Productivity"
     },
     "nsis": {
       "oneClick": false,
