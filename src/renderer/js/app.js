@@ -3,20 +3,15 @@ import * as Config from './config.js';
 import * as UI from './ui.js';
 import { setupMarkdown, parseMarkdown } from './markdown.js';
 import { AssemblyService } from './assembly-service.js';
-
-// ── Global Error Handlers (Renderer) ────────────────────────────────────────
+import { CustomDropdown } from './dropdown-manager.js';
 
 window.onerror = (message, source, lineno, colno, error) => {
-    console.error('[RENDERER ERROR]', message, `at ${source}:${lineno}:${colno}`, error);
-    return true; // Prevent default error dialog
+    return true; 
 };
 
 window.onunhandledrejection = (event) => {
-    console.error('[RENDERER UNHANDLED REJECTION]', event.reason);
     event.preventDefault();
 };
-
-// ── DOM Elements (with safe fallbacks) ──────────────────────────────────────
 
 function $(id) {
     return document.getElementById(id);
@@ -25,11 +20,17 @@ function $(id) {
 const promptInput = $('prompt-input');
 const searchBtn = $('search-btn');
 const resultContent = $('result-content');
-const modelSelect = $('modelSelect');
 const statusDot = $('connectionStatus');
 const statusText = $('statusText');
 const chatStage = $('chat-stage');
 const clearChatBtn = $('clear-chat-btn');
+
+// Custom Dropdowns (initialized in init)
+let modelSelect;
+let settingsPersona;
+let settingsAppMode;
+let newModelProvider;
+let newGeminiModelSelect;
 
 // Overlays
 const onboardingOverlay = $('onboarding-overlay');
@@ -40,11 +41,9 @@ const userNameInput = $('user-name');
 const systemPromptInput = $('system-prompt');
 const settingsNameInput = $('settings-name');
 const settingsPromptInput = $('settings-prompt');
-const settingsAppMode = $('settings-app-mode');
 const settingsAssemblyKey = $('settings-assembly-key');
 const settingsResume = $('settings-resume');
 const settingsJd = $('settings-jd');
-const settingsPersona = $('settings-persona');
 const voiceTestStatus = $('voice-test-status');
 
 // Window Controls
@@ -54,7 +53,6 @@ const winCloseBtn = $('win-close-btn');
 
 // Model Management Elements
 const customModelsList = $('custom-models-list');
-const newModelProvider = $('new-model-provider');
 const newModelLabel = $('new-model-label');
 const newModelId = $('new-model-id');
 const newModelKey = $('new-model-key');
@@ -65,7 +63,6 @@ const apiKeyLabel = $('api-key-label');
 const baseUrlGroup = $('base-url-group');
 const modelIdGroup = $('model-id-group');
 const geminiModelGroup = $('gemini-model-group');
-const newGeminiModelSelect = $('new-gemini-model-select');
 const verifyGeminiBtn = $('verify-gemini-btn');
 const geminiFetchStatus = $('gemini-fetch-status');
 
@@ -87,38 +84,21 @@ let conversationHistory = [];
 let emptyStateHtml = '';
 
 async function init() {
-    console.log('[INIT] Starting application setup...');
     try {
         setupMarkdown();
-
-        console.log('[INIT] Loading app configuration...');
         loadAppConfig();
 
-        // Capture initial UI state
         emptyStateHtml = resultContent ? resultContent.innerHTML : '';
         customModels = Config.getSavedModels();
 
-        console.log('[INIT] Applying app mode...');
         applyAppMode(userConfig.appMode || 'stealth');
-
-        // --- CRITICAL: Attach listeners BEFORE potentially slow operations ---
-        console.log('[INIT] Attaching event listeners (UI Interactivity Ready)');
+        initCustomDropdowns();
         setupEventListeners();
-
-        console.log('[INIT] Rendering initial models list...');
         renderCustomModelsList();
 
-        // --- NON-BLOCKING: Background model scan ---
-        console.log('[INIT] Starting background model scan...');
-        loadModels().then(() => {
-            console.log('[INIT] Background model scan complete.');
-        }).catch(err => {
-            console.error('[INIT] Background model scan failed:', err);
-        });
-
-        console.log('[INIT] Setup finished. App is responsive.');
+        loadModels();
     } catch (err) {
-        console.error('[INIT] Critical initialization error:', err);
+        console.error('[INIT] Setup failed:', err);
     }
 }
 
@@ -132,8 +112,90 @@ function applyAppMode(mode) {
         }
 
         scrubTooltips(mode);
+        
+        // Update dropdown if initialized
+        if (settingsAppMode) settingsAppMode.setValue(mode);
     } catch (err) {
         console.error('[APP] Mode switch error:', err);
+    }
+}
+
+function initCustomDropdowns() {
+    modelSelect = new CustomDropdown('modelSelect', {
+        placeholder: 'Loading models...',
+        onChange: () => {}
+    });
+
+    // 2. Settings Persona
+    settingsPersona = new CustomDropdown('settings-persona', {
+        defaultValue: 'engineer',
+        options: [
+            { group: 'Software Engineering', value: 'engineer', label: 'Full Stack Developer' },
+            { group: 'Software Engineering', value: 'frontend', label: 'Frontend Architecture' },
+            { group: 'Software Engineering', value: 'backend', label: 'Backend & Infrastructure' },
+            { group: 'Software Engineering', value: 'fullstack', label: 'Full Stack Engineer' },
+            { group: 'Software Engineering', value: 'mobile', label: 'Mobile App Developer' },
+            { group: 'Software Engineering', value: 'devops', label: 'DevOps / Cloud Engineer' },
+            { group: 'Software Engineering', value: 'ml', label: 'ML / AI Engineer' },
+            { group: 'Software Engineering', value: 'qa', label: 'QA / Test Engineer' },
+            { group: 'Leadership & Strategy', value: 'architect', label: 'System Architect' },
+            { group: 'Leadership & Strategy', value: 'manager', label: 'Engineering Manager' },
+            { group: 'Leadership & Strategy', value: 'analyst', label: 'Data / Business Analyst' },
+            { group: 'Leadership & Strategy', value: 'product', label: 'Product Manager' },
+            { group: 'Other', value: 'default', label: 'None (Raw Prompt Only)' }
+        ]
+    });
+
+    // 3. Settings App Mode
+    settingsAppMode = new CustomDropdown('settings-app-mode', {
+        defaultValue: 'stealth',
+        options: [
+            { value: 'stealth', label: 'Stealth Mode (Hidden / Always On Top)' },
+            { value: 'normal', label: 'Normal Mode (Standard Window)' }
+        ]
+    });
+
+    // 4. Model Provider
+    newModelProvider = new CustomDropdown('new-model-provider', {
+        defaultValue: 'ollama',
+        options: [
+            { value: 'ollama', label: 'Ollama' },
+            { value: 'openrouter', label: 'OpenRouter' },
+            { value: 'gemini', label: 'Google Gemini' }
+        ],
+        onChange: (val) => handleProviderChange(val)
+    });
+
+    // 5. Gemini Model Selector
+    newGeminiModelSelect = new CustomDropdown('new-gemini-model-select', {
+        placeholder: 'Awaiting API Verification...',
+        options: []
+    });
+}
+
+function handleProviderChange(provider) {
+    try {
+        if (apiKeyGroup) apiKeyGroup.style.display = (provider === 'openrouter' || provider === 'gemini') ? 'block' : 'none';
+        if (baseUrlGroup) baseUrlGroup.style.display = provider === 'ollama' ? 'block' : 'none';
+        if (verifyGeminiBtn) verifyGeminiBtn.style.display = provider === 'gemini' ? 'block' : 'none';
+        
+        // Toggle between manual ID input and Gemini Select
+        if (modelIdGroup) modelIdGroup.style.display = provider === 'gemini' ? 'none' : 'block';
+        if (geminiModelGroup) geminiModelGroup.style.display = provider === 'gemini' ? 'block' : 'none';
+
+        if (apiKeyLabel) {
+            apiKeyLabel.textContent = provider === 'gemini' ? 'Google AI Studio Key' : 'API Key';
+        }
+
+        if (provider === 'openrouter') {
+            if (newModelId) newModelId.placeholder = 'e.g. qwen/qwen3.6-plus:free';
+            if (newModelUrl) newModelUrl.value = '';
+        } else if (provider === 'ollama') {
+            if (newModelId) newModelId.placeholder = 'e.g. llama3';
+            if (newModelUrl) newModelUrl.value = 'http://127.0.0.1:11434';
+        }
+    } catch (err) {
+        console.error('[APP] Provider change error:', err);
     }
 }
 
@@ -180,33 +242,42 @@ async function loadModels() {
         if (statusText) statusText.textContent = 'Scanning...';
 
         const ollamaModels = await API.fetchModels();
-        if (modelSelect) modelSelect.innerHTML = '';
+        const modelOptions = [];
 
         if (ollamaModels && Array.isArray(ollamaModels)) {
             ollamaModels.forEach(m => {
                 if (!m || !m.name) return;
-                const opt = document.createElement('option');
-                opt.value = `ollama|${m.name}|http://127.0.0.1:11434`;
-                opt.textContent = `Local: ${m.name}`;
-                if (modelSelect) modelSelect.appendChild(opt);
+                modelOptions.push({
+                    group: 'Local Nodes',
+                    value: `ollama|${m.name}|http://127.0.0.1:11434`,
+                    label: `Local: ${m.name}`
+                });
             });
         }
 
         if (customModels && customModels.length > 0) {
             customModels.forEach(m => {
                 if (!m || !m.modelId) return;
-                const opt = document.createElement('option');
-                opt.value = `${m.provider}|${m.modelId}|${m.baseUrl}|${m.apiKey}`;
-                opt.textContent = `${m.name || m.modelId}`;
-                if (modelSelect) modelSelect.appendChild(opt);
+                let group = 'Cloud Nodes';
+                if (m.provider === 'ollama') group = 'Custom Local';
+                if (m.provider === 'gemini') group = 'Gemini Nodes';
+
+                modelOptions.push({
+                    group: group,
+                    value: `${m.provider}|${m.modelId}|${m.baseUrl}|${m.apiKey}`,
+                    label: `${m.name || m.modelId}`
+                });
             });
         }
 
-        if (modelSelect && modelSelect.options.length > 0) {
-            if (statusDot) statusDot.className = 'dot online';
-            if (statusText) statusText.textContent = 'Ready';
-        } else {
-            if (statusText) statusText.textContent = 'No Models';
+        if (modelSelect) {
+            modelSelect.setOptions(modelOptions);
+            if (modelOptions.length > 0) {
+                if (statusDot) statusDot.className = 'dot online';
+                if (statusText) statusText.textContent = 'Ready';
+            } else {
+                if (statusText) statusText.textContent = 'No Models';
+            }
         }
     } catch (err) {
         console.error('[APP] Model loading error:', err);
@@ -416,34 +487,7 @@ function renderCustomModelsList() {
 function setupEventListeners() {
     if (promptInput) promptInput.addEventListener('input', () => UI.autoGrowTextarea(promptInput));
 
-    if (newModelProvider) {
-        newModelProvider.addEventListener('change', () => {
-            try {
-                const provider = newModelProvider.value;
-                if (apiKeyGroup) apiKeyGroup.style.display = (provider === 'openrouter' || provider === 'gemini') ? 'block' : 'none';
-                if (baseUrlGroup) baseUrlGroup.style.display = provider === 'ollama' ? 'block' : 'none';
-                if (verifyGeminiBtn) verifyGeminiBtn.style.display = provider === 'gemini' ? 'block' : 'none';
-                
-                // Toggle between manual ID input and Gemini Select
-                if (modelIdGroup) modelIdGroup.style.display = provider === 'gemini' ? 'none' : 'block';
-                if (geminiModelGroup) geminiModelGroup.style.display = provider === 'gemini' ? 'block' : 'none';
-
-                if (apiKeyLabel) {
-                    apiKeyLabel.textContent = provider === 'gemini' ? 'Google AI Studio Key' : 'API Key';
-                }
-
-                if (provider === 'openrouter') {
-                    if (newModelId) newModelId.placeholder = 'e.g. qwen/qwen3.6-plus:free';
-                    if (newModelUrl) newModelUrl.value = '';
-                } else if (provider === 'ollama') {
-                    if (newModelId) newModelId.placeholder = 'e.g. llama3';
-                    if (newModelUrl) newModelUrl.value = 'http://127.0.0.1:11434';
-                }
-            } catch (err) {
-                console.error('[APP] Provider change error:', err);
-            }
-        });
-    }
+    // Dropdown listeners are handled via callbacks in initCustomDropdowns()
 
     // Manual fetch/verify for Gemini
     if (verifyGeminiBtn) {
@@ -481,7 +525,6 @@ function setupEventListeners() {
             // 2. Filter relevant ones
             const candidateModels = allModels.filter(m => m.supportedGenerationMethods.includes('generateContent'));
             
-            newGeminiModelSelect.innerHTML = '<option value="">Searching for working models...</option>';
             
             const workingModels = [];
             let checkedCount = 0;
@@ -494,24 +537,22 @@ function setupEventListeners() {
 
                 const isWorking = await API.testGeminiModel(key, m.name);
                 if (isWorking) {
-                    workingModels.push(m);
-                    // Update dropdown incrementally
-                    const opt = document.createElement('option');
-                    opt.value = m.name.replace('models/', '');
-                    opt.textContent = m.displayName;
-                    if (workingModels.length === 1) newGeminiModelSelect.innerHTML = '';
-                    newGeminiModelSelect.appendChild(opt);
+                    workingModels.push({
+                        value: m.name.replace('models/', ''),
+                        label: m.displayName
+                    });
                 }
             }
 
             if (workingModels.length === 0) {
-                newGeminiModelSelect.innerHTML = '<option value="">No working models found</option>';
+                if (newGeminiModelSelect) newGeminiModelSelect.setOptions([]);
                 if (geminiFetchStatus) {
-                    geminiFetchStatus.textContent = 'Verification Failed';
+                    geminiFetchStatus.textContent = 'No working models found';
                     geminiFetchStatus.style.color = '#ff4d4d';
                     geminiFetchStatus.classList.remove('loading');
                 }
             } else {
+                if (newGeminiModelSelect) newGeminiModelSelect.setOptions(workingModels);
                 if (geminiFetchStatus) {
                     geminiFetchStatus.textContent = `${workingModels.length} Models Verified`;
                     geminiFetchStatus.style.color = '#10a37f';
@@ -550,12 +591,12 @@ function setupEventListeners() {
     if (addModelBtn) {
         addModelBtn.addEventListener('click', () => {
             try {
-                const provider = newModelProvider ? newModelProvider.value : 'ollama';
+                const provider = newModelProvider ? newModelProvider.getValue() : 'ollama';
                 const name = newModelLabel ? newModelLabel.value.trim() : '';
                 let modelId = '';
                 
                 if (provider === 'gemini') {
-                    modelId = newGeminiModelSelect ? newGeminiModelSelect.value : '';
+                    modelId = newGeminiModelSelect ? newGeminiModelSelect.getValue() : '';
                 } else {
                     modelId = newModelId ? newModelId.value.trim() : '';
                 }
@@ -572,7 +613,7 @@ function setupEventListeners() {
                     if (newModelId) newModelId.value = '';
                     if (newModelKey) newModelKey.value = '';
                     if (newGeminiModelSelect) {
-                        newGeminiModelSelect.innerHTML = '<option value="">Enter API Key first...</option>';
+                        newGeminiModelSelect.setOptions([]);
                     }
                 } else if (!modelId && provider === 'gemini') {
                     alert('Please enter a valid API key and select a model from the list.');
@@ -598,11 +639,11 @@ function setupEventListeners() {
             try {
                 if (settingsNameInput) settingsNameInput.value = userConfig.name || '';
                 if (settingsPromptInput) settingsPromptInput.value = userConfig.systemPrompt || '';
-                if (settingsAppMode) settingsAppMode.value = userConfig.appMode || 'stealth';
+                if (settingsAppMode) settingsAppMode.setValue(userConfig.appMode || 'stealth');
                 if (settingsAssemblyKey) settingsAssemblyKey.value = userConfig.assemblyKey || '';
                 if (settingsResume) settingsResume.value = userConfig.resumeContent || '';
                 if (settingsJd) settingsJd.value = userConfig.jobDescription || '';
-                if (settingsPersona) settingsPersona.value = userConfig.persona || 'engineer';
+                if (settingsPersona) settingsPersona.setValue(userConfig.persona || 'engineer');
                 if (settingsOverlay) settingsOverlay.classList.remove('hidden');
             } catch (err) {
                 console.error('[APP] Settings open error:', err);
@@ -620,14 +661,14 @@ function setupEventListeners() {
             try {
                 const name = settingsNameInput ? settingsNameInput.value.trim() : '';
                 const prompt = settingsPromptInput ? settingsPromptInput.value.trim() : '';
-                const appMode = settingsAppMode ? settingsAppMode.value : 'stealth';
+                const appMode = settingsAppMode ? settingsAppMode.getValue() : 'stealth';
                 const assemblyKey = settingsAssemblyKey ? settingsAssemblyKey.value.trim() : '';
 
                 if (name) {
                     userConfig = Config.saveConfig(name, prompt, appMode, assemblyKey, {
                         resumeContent: settingsResume ? settingsResume.value.trim() : '',
                         jobDescription: settingsJd ? settingsJd.value.trim() : '',
-                        persona: settingsPersona ? settingsPersona.value : 'engineer'
+                        persona: settingsPersona ? settingsPersona.getValue() : 'engineer'
                     });
                     UI.updateGreeting($('greeting-container'), userConfig.name);
                     applyAppMode(appMode);
@@ -675,45 +716,35 @@ function setupEventListeners() {
 
     if (saveConfigBtn) {
         const handleOnboardingSave = () => {
-            console.log('[ONBOARDING] Initialization triggered');
             try {
                 const name = userNameInput ? userNameInput.value.trim() : '';
                 const prompt = systemPromptInput ? systemPromptInput.value.trim() : '';
                 const card = document.querySelector('.onboarding-card');
 
                 if (name) {
-                    console.log('[ONBOARDING] Valid name provided, saving config...');
                     saveConfigBtn.textContent = 'Initializing...';
                     saveConfigBtn.disabled = true;
 
-                    // Logic for "Going Home"
                     userConfig = Config.saveConfig(name, prompt, 'stealth', '');
 
                     if (onboardingOverlay) {
                         onboardingOverlay.classList.add('hidden');
-                        console.log('[ONBOARDING] Overlay hidden class added');
-                        // Remove from layout after transition
                         setTimeout(() => {
                             onboardingOverlay.style.display = 'none';
-                            console.log('[ONBOARDING] Overlay fully removed from display');
                         }, 400);
                     }
 
-                    // Refresh UI components
                     UI.updateGreeting($('greeting-container'), userConfig.name);
                     if (conversationHistory.length === 0 && resultContent) {
                         const homeGreeting = resultContent.querySelector('#greeting-container');
                         if (homeGreeting) UI.updateGreeting(homeGreeting, userConfig.name);
                     }
 
-                    // Final refresh
                     loadModels();
                 } else {
-                    console.warn('[ONBOARDING] Initialization failed: Name is empty');
-                    // Visual Validation Failure
                     if (card) {
                         card.classList.remove('shake');
-                        void card.offsetWidth; // Trigger reflow
+                        void card.offsetWidth; 
                         card.classList.add('shake');
                     }
                     if (userNameInput) {
@@ -722,7 +753,7 @@ function setupEventListeners() {
                     }
                 }
             } catch (err) {
-                console.error('[ONBOARDING] Critical error during save:', err);
+                console.error('[ONBOARDING] Error:', err);
                 if (saveConfigBtn) {
                     saveConfigBtn.textContent = 'Error - Try Again';
                     saveConfigBtn.disabled = false;
@@ -913,7 +944,7 @@ async function performSearch(isF10 = false) {
     if (!promptInput || !modelSelect) return;
 
     const text = promptInput.value.trim();
-    const modelSelection = modelSelect.value;
+    const modelSelection = modelSelect.getValue();
     if (!text || !modelSelection) return;
 
     const parts = modelSelection.split('|');
