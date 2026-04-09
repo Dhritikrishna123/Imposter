@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="css/components/modal.css">
     <link rel="stylesheet" href="css/components/onboarding.css">
     <link rel="stylesheet" href="css/components/models.css">
+    <link rel="stylesheet" href="css/components/dropdown.css">
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -35,9 +36,9 @@
                     <path d="M2 17L12 22L22 17"></path>
                     <path d="M2 12L12 17L22 12"></path>
                 </svg>
-                <select id="modelSelect">
-                    <option value="">Loading models...</option>
-                </select>
+                <div id="modelSelect" class="custom-dropdown">
+                    <!-- Custom dropdown will be initialized here -->
+                </div>
             </div>
             <div class="header-actions">
                 <div class="status-indicator">
@@ -252,27 +253,9 @@
                                 <div style="display: grid; gap: 1.5rem;">
                                     <div class="field-group" style="margin: 0;">
                                         <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Target Persona</label>
-                                        <select id="settings-persona" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer;">
-                                            <optgroup label="Software Engineering">
-                                                <option value="engineer">Full Stack Developer</option>
-                                                <option value="frontend">Frontend Architecture</option>
-                                                <option value="backend">Backend & Infrastructure</option>
-                                                <option value="fullstack">Full Stack Engineer</option>
-                                                <option value="mobile">Mobile App Developer</option>
-                                                <option value="devops">DevOps / Cloud Engineer</option>
-                                                <option value="ml">ML / AI Engineer</option>
-                                                <option value="qa">QA / Test Engineer</option>
-                                            </optgroup>
-                                            <optgroup label="Leadership & Strategy">
-                                                <option value="architect">System Architect</option>
-                                                <option value="manager">Engineering Manager</option>
-                                                <option value="analyst">Data / Business Analyst</option>
-                                                <option value="product">Product Manager</option>
-                                            </optgroup>
-                                            <optgroup label="Other">
-                                                <option value="default">None (Raw Prompt Only)</option>
-                                            </optgroup>
-                                        </select>
+                                        <div id="settings-persona" class="custom-dropdown" style="width: 100%;">
+                                            <!-- Initialized in app.js -->
+                                        </div>
                                     </div>
 
                                     <div class="field-group" style="margin: 0;">
@@ -293,10 +276,9 @@
                             <h2>Application Mode</h2>
                             <div class="field-group">
                                 <label>Visibility & Tracking</label>
-                                <select id="settings-app-mode">
-                                    <option value="stealth">Stealth Mode (Hidden / Always On Top)</option>
-                                    <option value="normal">Normal Mode (Standard Window)</option>
-                                </select>
+                                <div id="settings-app-mode" class="custom-dropdown">
+                                    <!-- Initialized in app.js -->
+                                </div>
                                 <p class="field-hint"><b>Stealth Mode</b> removes the app from the taskbar and pins it
                                     over other apps. <br><b>Normal Mode</b> acts like a regular desktop app with a
                                     taskbar icon and window controls.</p>
@@ -330,11 +312,9 @@
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                         <div class="form-group" style="margin-bottom: 0;">
                                             <label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.02em;">Model Provider</label>
-                                            <select id="new-model-provider" style="width: 100%; padding: 8px 10px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-primary); font-size: 13px;">
-                                                <option value="ollama">Ollama</option>
-                                                <option value="openrouter">OpenRouter</option>
-                                                <option value="gemini">Google Gemini</option>
-                                            </select>
+                                            <div id="new-model-provider" class="custom-dropdown">
+                                                <!-- Initialized in app.js -->
+                                            </div>
                                         </div>
                                         <div class="form-group" style="margin-bottom: 0;">
                                             <label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.02em;">Friendly Alias</label>
@@ -352,9 +332,9 @@
                                         <!-- Gemini Group -->
                                         <div class="form-group" id="gemini-model-group" style="display: none; margin-bottom: 0;">
                                             <label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.02em;">Available Gemini Models</label>
-                                            <select id="new-gemini-model-select" style="width: 100%; padding: 8px 10px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-primary); font-size: 13px;">
-                                                <option value="">Awaiting API Verification...</option>
-                                            </select>
+                                            <div id="new-gemini-model-select" class="custom-dropdown">
+                                                <!-- Initialized in app.js -->
+                                            </div>
                                         </div>
 
                                         <!-- API Key Group -->
