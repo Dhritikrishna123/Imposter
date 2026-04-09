@@ -5,19 +5,13 @@ import { setupMarkdown, parseMarkdown } from './markdown.js';
 import { AssemblyService } from './assembly-service.js';
 import { CustomDropdown } from './dropdown-manager.js';
 
-// ── Global Error Handlers (Renderer) ────────────────────────────────────────
-
 window.onerror = (message, source, lineno, colno, error) => {
-    console.error('[RENDERER ERROR]', message, `at ${source}:${lineno}:${colno}`, error);
-    return true; // Prevent default error dialog
+    return true; 
 };
 
 window.onunhandledrejection = (event) => {
-    console.error('[RENDERER UNHANDLED REJECTION]', event.reason);
     event.preventDefault();
 };
-
-// ── DOM Elements (with safe fallbacks) ──────────────────────────────────────
 
 function $(id) {
     return document.getElementById(id);
@@ -90,41 +84,21 @@ let conversationHistory = [];
 let emptyStateHtml = '';
 
 async function init() {
-    console.log('[INIT] Starting application setup...');
     try {
         setupMarkdown();
-
-        console.log('[INIT] Loading app configuration...');
         loadAppConfig();
 
-        // Capture initial UI state
         emptyStateHtml = resultContent ? resultContent.innerHTML : '';
         customModels = Config.getSavedModels();
 
-        console.log('[INIT] Applying app mode...');
         applyAppMode(userConfig.appMode || 'stealth');
-
-        console.log('[INIT] Initializing custom dropdowns...');
         initCustomDropdowns();
-
-        // --- CRITICAL: Attach listeners BEFORE potentially slow operations ---
-        console.log('[INIT] Attaching event listeners (UI Interactivity Ready)');
         setupEventListeners();
-
-        console.log('[INIT] Rendering initial models list...');
         renderCustomModelsList();
 
-        // --- NON-BLOCKING: Background model scan ---
-        console.log('[INIT] Starting background model scan...');
-        loadModels().then(() => {
-            console.log('[INIT] Background model scan complete.');
-        }).catch(err => {
-            console.error('[INIT] Background model scan failed:', err);
-        });
-
-        console.log('[INIT] Setup finished. App is responsive.');
+        loadModels();
     } catch (err) {
-        console.error('[INIT] Critical initialization error:', err);
+        console.error('[INIT] Setup failed:', err);
     }
 }
 
@@ -147,12 +121,9 @@ function applyAppMode(mode) {
 }
 
 function initCustomDropdowns() {
-    // 1. Header Model Selector
     modelSelect = new CustomDropdown('modelSelect', {
         placeholder: 'Loading models...',
-        onChange: () => {
-             // Logic in performSearch handles reading this value
-        }
+        onChange: () => {}
     });
 
     // 2. Settings Persona
@@ -745,45 +716,35 @@ function setupEventListeners() {
 
     if (saveConfigBtn) {
         const handleOnboardingSave = () => {
-            console.log('[ONBOARDING] Initialization triggered');
             try {
                 const name = userNameInput ? userNameInput.value.trim() : '';
                 const prompt = systemPromptInput ? systemPromptInput.value.trim() : '';
                 const card = document.querySelector('.onboarding-card');
 
                 if (name) {
-                    console.log('[ONBOARDING] Valid name provided, saving config...');
                     saveConfigBtn.textContent = 'Initializing...';
                     saveConfigBtn.disabled = true;
 
-                    // Logic for "Going Home"
                     userConfig = Config.saveConfig(name, prompt, 'stealth', '');
 
                     if (onboardingOverlay) {
                         onboardingOverlay.classList.add('hidden');
-                        console.log('[ONBOARDING] Overlay hidden class added');
-                        // Remove from layout after transition
                         setTimeout(() => {
                             onboardingOverlay.style.display = 'none';
-                            console.log('[ONBOARDING] Overlay fully removed from display');
                         }, 400);
                     }
 
-                    // Refresh UI components
                     UI.updateGreeting($('greeting-container'), userConfig.name);
                     if (conversationHistory.length === 0 && resultContent) {
                         const homeGreeting = resultContent.querySelector('#greeting-container');
                         if (homeGreeting) UI.updateGreeting(homeGreeting, userConfig.name);
                     }
 
-                    // Final refresh
                     loadModels();
                 } else {
-                    console.warn('[ONBOARDING] Initialization failed: Name is empty');
-                    // Visual Validation Failure
                     if (card) {
                         card.classList.remove('shake');
-                        void card.offsetWidth; // Trigger reflow
+                        void card.offsetWidth; 
                         card.classList.add('shake');
                     }
                     if (userNameInput) {
@@ -792,7 +753,7 @@ function setupEventListeners() {
                     }
                 }
             } catch (err) {
-                console.error('[ONBOARDING] Critical error during save:', err);
+                console.error('[ONBOARDING] Error:', err);
                 if (saveConfigBtn) {
                     saveConfigBtn.textContent = 'Error - Try Again';
                     saveConfigBtn.disabled = false;
