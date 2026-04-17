@@ -53,13 +53,22 @@ function startTranscription(apiKey) {
                     nativeAudioProcess = spawn('pw-record', [
                         '--rate=16000',
                         '--channels=1',
-                        '--format=s16le',
+                        '--format=s16',
                         '-' // stdout
                     ]);
 
+                    let audioBuffer = Buffer.alloc(0);
+                    // 16000Hz * 1 channel * 2 bytes = 32000 bytes/sec. 100ms = 3200 bytes.
+                    const MIN_CHUNK_SIZE = 3200; 
+
                     nativeAudioProcess.stdout.on('data', (data) => {
-                        if (assemblySocket && assemblySocket.readyState === WebSocket.OPEN) {
-                            assemblySocket.send(data);
+                        audioBuffer = Buffer.concat([audioBuffer, data]);
+
+                        if (audioBuffer.length >= MIN_CHUNK_SIZE) {
+                            if (assemblySocket && assemblySocket.readyState === WebSocket.OPEN) {
+                                assemblySocket.send(audioBuffer);
+                            }
+                            audioBuffer = Buffer.alloc(0);
                         }
                     });
 

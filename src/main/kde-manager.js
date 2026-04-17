@@ -28,6 +28,8 @@ function generateStealthScript(enable) {
     function applyToWindow(w) {
         if (w.resourceClass === "${WM_CLASS}") {
             w.excludeFromCapture = ${value};
+            w.skipTaskbar = ${value};
+            w.skipPager = ${value};
         }
     }
 
