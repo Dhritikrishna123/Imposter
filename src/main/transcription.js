@@ -1,8 +1,11 @@
 const { WebSocket } = require('ws');
 const { getMainWindow, getIslandWindow } = require('./window-manager');
+const { spawn } = require('child_process');
+const kdeManager = require('./kde-manager');
 
 let assemblySocket = null;
 let isConnecting = false;
+let nativeAudioProcess = null;
 const SAMPLE_RATE = 16000;
 
 function safeSendStatus(status, error) {
@@ -42,6 +45,36 @@ function startTranscription(apiKey) {
             clearTimeout(connectionTimeout);
             isConnecting = false;
             safeSendStatus('connected');
+
+            // If we are on KDE/Linux, start the native PipeWire capture now
+            if (kdeManager.isKdePlasma()) {
+                console.log('[TRANSCRIPTION] Starting native PipeWire audio capture (pw-record)');
+                try {
+                    nativeAudioProcess = spawn('pw-record', [
+                        '--rate=16000',
+                        '--channels=1',
+                        '--format=s16le',
+                        '-' // stdout
+                    ]);
+
+                    nativeAudioProcess.stdout.on('data', (data) => {
+                        if (assemblySocket && assemblySocket.readyState === WebSocket.OPEN) {
+                            assemblySocket.send(data);
+                        }
+                    });
+
+                    nativeAudioProcess.on('error', (err) => {
+                        console.error('[TRANSCRIPTION] pw-record error:', err.message);
+                    });
+
+                    nativeAudioProcess.on('close', (code) => {
+                        console.log(`[TRANSCRIPTION] pw-record exited with code ${code}`);
+                        nativeAudioProcess = null;
+                    });
+                } catch (err) {
+                    console.error('[TRANSCRIPTION] Failed to spawn pw-record:', err);
+                }
+            }
         });
 
         assemblySocket.on('message', (message) => {
@@ -89,6 +122,15 @@ function startTranscription(apiKey) {
 
 function stopTranscription() {
     isConnecting = false;
+
+    // Kill native audio process if it exists
+    if (nativeAudioProcess) {
+        try {
+            nativeAudioProcess.kill('SIGTERM');
+        } catch (_) {}
+        nativeAudioProcess = null;
+    }
+
     if (assemblySocket) {
         try {
             if (assemblySocket.readyState === WebSocket.OPEN) {

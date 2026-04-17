@@ -42,6 +42,11 @@ function registerIpcHandlers() {
         }
     });
 
+    ipcMain.handle('is-native-linux-audio', () => {
+        // Use native pipewire record on KDE/Linux instead of Chromium WebRTC
+        return kdeManager.isKdePlasma();
+    });
+
     ipcMain.handle('start-transcription', async (event, apiKeyFromRenderer) => {
         try {
             const apiKey = apiKeyFromRenderer || process.env.ASSEMBLY_AI_API_KEY || process.env.ASSEMBLY_API;
