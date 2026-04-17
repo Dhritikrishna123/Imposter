@@ -14,7 +14,7 @@
 
 Imposter provides a discreet, always-on-top AI layer designed for maximum invisibility.
 
-*   **Stealth Window**: Hardware-level DRM protection makes the AI invisible to screen-sharing, screenshots, and meeting platforms (Zoom, Teams).
+*   **Stealth Window**: Hardware-level DRM protection (Windows/macOS) and KWin Scripting (Linux KDE) makes the AI invisible to screen-sharing, screenshots, and meeting platforms (Zoom, Teams).
 *   **Voice Transcription**: Real-time system audio capture streamed to AssemblyAI for live results.
 *   **Screen OCR**: Local Tesseract.js extraction from any region-snip directly into your AI prompt.
 *   **High-Stakes Personas**: 12 context-aware identities tailored for specific assessment scenarios.
@@ -39,7 +39,8 @@ Imposter provides a discreet, always-on-top AI layer designed for maximum invisi
 
 Built on a specialized architecture, Imposter remains non-intrusive and computationally isolated until triggered.
 
-*   **Hardware DRM**: Blocks all standard capture APIs. 
+*   **Hardware DRM**: Blocks all standard capture APIs on Windows and macOS.
+*   **KDE Plasma Stealth**: Native compositor integration via KWin scripting for true invisibility on Linux (KDE 6.6+).
 *   **Disguised UI**: Instantly transform into a standard utility identity to stay under the radar.
 *   **100% Local**: Zero telemetry. Prompts, conversations, and keys never leave your machine.
 
